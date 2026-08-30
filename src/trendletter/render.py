@@ -105,6 +105,37 @@ def galaxy_data(issue: Issue, cfg: Config) -> dict:
     }
 
 
+def embed_thumbnails(issue: Issue, cfg: Config) -> None:
+    """영상 썸네일을 파일 안에 담는다.
+
+    이것만 외부(i.ytimg.com)에서 불러오고 있었다. 폐쇄망이나 오프라인에서,
+    또는 파일을 그대로 주고받을 때 깨진 이미지로 보인다.
+    담아 두면 발행물이 완전히 혼자 도는 파일 하나가 된다.
+    """
+    if not cfg.get("output.embed_thumbnails", True):
+        return
+    import base64
+
+    from .http import Fetcher
+
+    fetcher = Fetcher()
+    for it in issue.items:
+        for v in it.videos:
+            src = v.get("thumb") or ""
+            if not src.startswith("http"):
+                continue
+            try:
+                r = fetcher.session.get(src, timeout=fetcher.timeout)
+                r.raise_for_status()
+                mime = r.headers.get("Content-Type", "image/jpeg").split(";")[0]
+                v["thumb"] = "data:%s;base64,%s" % (
+                    mime,
+                    base64.b64encode(r.content).decode("ascii"),
+                )
+            except Exception:  # noqa: BLE001 - 썸네일은 없어도 된다
+                v["thumb"] = ""
+
+
 def render(issue: Issue, cfg: Optional[Config] = None) -> str:
     cfg = cfg or load()
     series = cfg.get("issue.series", "AI 정보동향지")
@@ -122,6 +153,7 @@ def render(issue: Issue, cfg: Optional[Config] = None) -> str:
 
 def write(issue: Issue, cfg: Optional[Config] = None, preview: bool = False) -> Path:
     cfg = cfg or load()
+    embed_thumbnails(issue, cfg)
     html = render(issue, cfg)
     name = issue.slug + (".preview.html" if preview else ".html")
     path = cfg.path("html_dir") / name

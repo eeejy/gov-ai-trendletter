@@ -85,6 +85,10 @@ output:
   display_font: paperlogy
   body_font: pretendard
 
+  # 영상 썸네일을 파일 안에 담는다. 끄면 유튜브 서버에서 불러오므로
+  # 폐쇄망·오프라인에서 깨지고, 파일을 그대로 주고받을 때도 안 보인다.
+  embed_thumbnails: true
+
   html_dir: data/issues
   draft_dir: data/drafts
   raw_dir: data/raw

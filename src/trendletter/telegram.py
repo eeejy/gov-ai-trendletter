@@ -114,16 +114,28 @@ def send(
     cfg: Optional[Config] = None,
     dry_run: bool = False,
     text: Optional[str] = None,
+    html_file=None,
 ) -> Dict[str, Any]:
-    """요약을 보내고, 모바일에서 볼 HTML 주소를 버튼으로 붙인다."""
+    """요약을 보낸다.
+
+    전문을 여는 방법은 두 가지다.
+      - `html_url`  주소가 있으면 버튼으로 붙인다. 누르면 바로 열려 가장 편하다
+      - `html_file` 주소가 없으면 파일을 첨부한다. 호스팅이 없어도 되지만
+                    휴대폰에서 열려면 내려받아 브라우저로 여는 단계가 하나 더 있다
+    """
     cfg = cfg or load()
     body = text if text is not None else summarize(issue, cfg)
 
     if html_url:
-        body += "\n\n📱 전문 보기 (모바일 최적화)\n%s" % html_url
+        body += "\n\n📱 전문 보기 (휴대폰·PC 모두 최적화)\n%s" % html_url
+    elif html_file:
+        body += "\n\n📎 전문은 아래 파일입니다. 받아서 열면 그대로 보입니다."
 
     if dry_run:
-        return {"ok": True, "dry_run": True, "text": body, "length": len(body)}
+        return {
+            "ok": True, "dry_run": True, "text": body, "length": len(body),
+            "attach": str(html_file) if html_file and not html_url else "",
+        }
 
     token, chat_id = _creds(cfg)
     kw: Dict[str, Any] = {
@@ -136,7 +148,27 @@ def send(
             {"inline_keyboard": [[{"text": "📖 동향지 전문 보기", "url": html_url}]]}
         )
     result = _call(token, "sendMessage", **kw)
-    return {"ok": True, "message_id": result.get("message_id"), "text": body}
+    out = {"ok": True, "message_id": result.get("message_id"), "text": body}
+
+    # 주소가 없을 때만 파일을 붙인다. 둘 다 보내면 중복이다.
+    if html_file and not html_url:
+        from pathlib import Path as _P
+
+        path = _P(html_file)
+        if path.exists():
+            with path.open("rb") as fp:
+                r = requests.post(
+                    API % (token, "sendDocument"),
+                    data={"chat_id": chat_id, "caption": "%s 전문" % issue.label},
+                    files={"document": (path.name, fp, "text/html")},
+                    timeout=120,
+                )
+            data = r.json()
+            if data.get("ok"):
+                out["file_message_id"] = data["result"].get("message_id")
+            else:
+                out["file_error"] = data.get("description")
+    return out
 
 
 def check(cfg: Optional[Config] = None) -> Dict[str, Any]:

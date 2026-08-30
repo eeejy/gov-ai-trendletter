@@ -63,7 +63,9 @@ python tools_sources.py       # 수집원 현황 + 라이브 점검
 
 ## 결과물
 
-정적 HTML 한 장. 외부 자원을 부르지 않아 폐쇄망에서도 열린다.
+**완전한 스탠드얼론 HTML 한 장**(약 390KB). 글꼴·CSS·JS·영상 썸네일을 모두 담고 있어
+인터넷 없이도 열린다. 받아보는 사람은 브라우저 외에 아무것도 설치하지 않는다.
+전달 방법은 [`docs/deploy.md`](docs/deploy.md) 참고.
 
 1. **표지** — 별이 흐르는 다크 화면
 2. **이번 주 요약** — 한 문장 요약 + 트랙별 후보/게재 + 많이 나온 말
@@ -88,7 +90,7 @@ src/trendletter/
   llm.py       Claude Code CLI 호출
   telegram.py  요약 발송
   editor/      로컬 웹 편집기 (Flask)
-docs/       설계·검증·수집원 현황
+docs/       설계·검증·수집원 현황·배포
 ```
 
 ## 기관에 맞추려면

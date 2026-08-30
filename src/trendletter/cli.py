@@ -113,7 +113,7 @@ def cmd_publish(args) -> int:
         base = (cfg.get("telegram.html_base") or "").strip()
         url = (base.rstrip("/") + "/" + out.name) if base else ""
         try:
-            r = tg.send(issue, url, cfg, dry_run=args.dry_run)
+            r = tg.send(issue, url, cfg, dry_run=args.dry_run, html_file=out)
             if r.get("dry_run"):
                 _say("\n[보내지 않음 — 미리보기 %d자]\n%s" % (r["length"], r["text"]))
             else:
@@ -140,10 +140,18 @@ def cmd_telegram(args) -> int:
     issue = store.load_draft(_resolve_draft(args.draft))
     base = (args.url or cfg.get("telegram.html_base") or "").strip()
     url = (base.rstrip("/") + "/" + issue.slug + ".html") if base else ""
-    r = tg.send(issue, url, cfg, dry_run=not args.send)
+    from trendletter.config import ROOT
+
+    html_path = load().path("html_dir") / (issue.slug + ".html")
+    r = tg.send(
+        issue, url, cfg, dry_run=not args.send,
+        html_file=html_path if html_path.exists() else None,
+    )
     if r.get("dry_run"):
         _say("[보내지 않음 — %d자]\n" % r["length"])
         _say(r["text"])
+        if r.get("attach"):
+            _say("\n첨부: %s" % r["attach"])
         _say("\n실제로 보내려면 --send 를 붙이세요.")
     else:
         _say("발송 완료 (message_id %s)" % r.get("message_id"))
