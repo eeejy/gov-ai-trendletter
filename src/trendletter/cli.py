@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 # 소스 레이아웃을 설치 없이 쓰기 위한 경로 보정
@@ -120,6 +121,66 @@ def cmd_publish(args) -> int:
     return 0
 
 
+def cmd_weekly(args) -> int:
+    """정해진 시간에 자동으로 도는 작업.
+
+    **초안까지만 만들고 멈춘다.** 발행과 직원 발송은 담당자가 편집기에서 확인한 뒤 한다.
+    사람 검토 없이 나가면 잘못된 내용이 전 직원에게 전달될 수 있다.
+    """
+    cfg = load()
+    started = datetime.now()
+    _say("[%s] 주간 초안 생성 시작" % started.strftime("%Y-%m-%d %H:%M"))
+
+    try:
+        articles = pipeline.collect(cfg, days=args.days, progress=_say)
+        store.save_raw(articles)
+        issue = pipeline.make_draft(articles, cfg, days=args.days)
+        issue.meta["sources_used"] = len({a.source_id for a in articles})
+        clusters = issue.meta.pop("_clusters", {})
+        issue.meta.pop("_all_clusters", None)
+        topics = issue.meta.pop("_topics", [])
+        if not args.no_llm:
+            pipeline.add_trend_items(issue, topics, cfg, progress=_say)
+            pipeline.polish(issue, clusters, cfg, progress=_say)
+        path = store.save_draft(issue)
+    except Exception as exc:  # noqa: BLE001
+        _say("실패: %s" % exc)
+        if cfg.get("telegram.enabled") and not args.no_notify:
+            try:
+                from trendletter import telegram as tg
+
+                tg.notify_admin("⚠️ 동향지 초안 생성 실패\n%s" % str(exc)[:300], cfg)
+            except Exception:  # noqa: BLE001
+                pass
+        return 1
+
+    took = int((datetime.now() - started).total_seconds())
+    _say("초안 %s · %d건 · %d초 → %s" % (issue.label, len(issue.items), took, path))
+
+    if cfg.get("telegram.enabled") and not args.no_notify:
+        lines = [
+            "📝 %s 초안이 준비됐습니다 (%d분 %d초)" % (issue.label, took // 60, took % 60),
+            "",
+            "수집 %d건 → 이슈 %d개 → 게재 후보 %d건"
+            % (
+                issue.meta.get("collected", 0),
+                issue.meta.get("ai_passed", 0),
+                len(issue.items),
+            ),
+            "",
+        ]
+        lines += ["%d. %s" % (it.no, it.title) for it in issue.items]
+        lines += ["", "편집기에서 확인 후 발행하세요.", "http://127.0.0.1:8765"]
+        try:
+            from trendletter import telegram as tg
+
+            tg.notify_admin("\n".join(lines), cfg)
+            _say("담당자 알림 발송 완료")
+        except Exception as exc:  # noqa: BLE001
+            _say("담당자 알림 실패: %s" % str(exc)[:150])
+    return 0
+
+
 def cmd_telegram(args) -> int:
     """텔레그램 연결 확인 / 미리보기 / 발송."""
     from trendletter import telegram as tg
@@ -218,6 +279,12 @@ def main(argv=None) -> int:
     b.add_argument("--no-telegram", action="store_true", help="발행 후 텔레그램 발송 안 함")
     b.add_argument("--dry-run", action="store_true", help="텔레그램 내용만 미리 보기")
     b.set_defaults(func=cmd_publish)
+
+    w = sub.add_parser("weekly", help="예약 실행용 — 초안까지만 만들고 담당자에게 알림")
+    w.add_argument("--days", type=int)
+    w.add_argument("--no-llm", action="store_true")
+    w.add_argument("--no-notify", action="store_true", help="담당자 알림 없이")
+    w.set_defaults(func=cmd_weekly)
 
     g = sub.add_parser("telegram", help="텔레그램 확인·미리보기·발송")
     g.add_argument("--check", action="store_true", help="봇·대상 방 연결 확인")

@@ -17,6 +17,11 @@ AI나침반*.html
 AI_동향지_반자동화.md
 
 # 비밀값
+# 예약 등록 파일은 각자 환경에서 만든다
+*.plist
+weekly.bat
+data/logs/
+
 config/secrets.yaml
 .env
 

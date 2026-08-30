@@ -22,9 +22,17 @@ class TelegramError(RuntimeError):
     pass
 
 
-def _creds(cfg: Config) -> tuple:
+def _creds(cfg: Config, admin: bool = False) -> tuple:
+    """admin=True 면 담당자 알림용 방으로 보낸다.
+
+    직원 배포용 방과 담당자 알림용 방을 나눠 두면,
+    초안이 준비됐다는 알림이 전 직원에게 가지 않는다.
+    admin_chat_id 가 없으면 같은 방을 쓴다.
+    """
     token = cfg.secret("telegram.token")
-    chat_id = cfg.secret("telegram.chat_id")
+    chat_id = (
+        cfg.secret("telegram.admin_chat_id") if admin else None
+    ) or cfg.secret("telegram.chat_id")
     if not token or not chat_id:
         raise TelegramError(
             "텔레그램 토큰이 없습니다. config/secrets.yaml 에 아래처럼 적거나\n"
@@ -182,3 +190,14 @@ def check(cfg: Optional[Config] = None) -> Dict[str, Any]:
         "chat": chat.get("title") or chat.get("username") or chat_id,
         "chat_type": chat.get("type"),
     }
+
+
+def notify_admin(text: str, cfg: Optional[Config] = None) -> Dict[str, Any]:
+    """담당자에게 짧은 알림을 보낸다 (초안 준비됨 등)."""
+    cfg = cfg or load()
+    token, chat_id = _creds(cfg, admin=True)
+    result = _call(
+        token, "sendMessage",
+        chat_id=chat_id, text=text, disable_web_page_preview="true",
+    )
+    return {"ok": True, "message_id": result.get("message_id")}

@@ -59,6 +59,7 @@ python run.py draft --days 7  # 수집 + 초안 (CLI)
 python run.py telegram        # 텔레그램 문구 미리보기
 python tools_audit.py         # 무엇을 가져와 무엇이 실렸는지 추적
 python tools_sources.py       # 수집원 현황 + 라이브 점검
+python tools_schedule.py      # 매주 정해진 시각에 초안 자동 생성 예약
 ```
 
 ## 결과물
@@ -106,7 +107,20 @@ docs/       설계·검증·수집원 현황·배포
 
 - Python 3.9+
 - [Claude Code](https://claude.com/claude-code) — 초안 작성용. 없으면 규칙 기반 뼈대만 나온다
-- 텔레그램 봇 토큰 (선택)
+- 텔레그램 봇 토큰 (선택) — [`docs/telegram.md`](docs/telegram.md)
+
+## 자동 실행
+
+초안 생성까지만 예약하고 **발행은 사람이 누른다.**
+GitHub Actions 는 쓰지 않는다 — 공개 저장소 로그에 초안이 남고,
+검토 없이 나가면 잘못된 내용이 전 직원에게 전달되기 때문이다.
+
+```bash
+python tools_schedule.py --day 5 --time 08:00   # macOS launchd / Windows 작업 스케줄러
+```
+
+예약된 시각에 수집·초안이 만들어지고 **담당자에게만** 텔레그램 알림이 간다.
+자세한 내용은 [`docs/telegram.md`](docs/telegram.md).
 
 ## 라이선스
 
