@@ -8,7 +8,7 @@
   - 제목·본문·시사점 직접 수정, 수정한 항목 잠금
   - 후보 목록에서 항목 추가
   - HTML 미리보기
-  - 초안 저장과 최종 발행 분리
+  - 자동 저장 · 되돌리기, 배포용 HTML 파일 만들기
 """
 
 from __future__ import annotations
@@ -102,6 +102,12 @@ def _current() -> Issue:
     return store.load_draft(path)
 
 
+# 설정 파일의 영문 분류를 화면에서는 우리말로 보여준다.
+# policy/primary 같은 배지는 처음 보는 담당자에게 아무 뜻도 전하지 못한다.
+TRACK_KO = {"policy": "정책·공공", "industry": "산업", "dev": "개발자"}
+ROLE_KO = {"primary": "일반", "must": "우리 기관", "verify": "교차 확인"}
+
+
 @app.get("/")
 def index():
     cfg = load()
@@ -110,6 +116,8 @@ def index():
         sources=cfg.sources,
         settings=cfg.settings,
         field_labels=list(dict.fromkeys(FIELD_LABELS.values())),
+        track_ko=lambda k: TRACK_KO.get(k, k),
+        role_ko=lambda k: ROLE_KO.get(k, k),
     )
 
 
@@ -352,7 +360,7 @@ def api_publish():
 
 @app.post("/api/reveal")
 def api_reveal():
-    """확정본이 있는 폴더를 탐색기/파인더로 연다.
+    """만들어 둔 동향지 파일이 있는 폴더를 탐색기/파인더로 연다.
 
     편집기는 담당자 PC 에서만 도는지라 파일은 이미 그 PC 에 있다.
     따로 내려받으면 사본만 하나 더 생기므로, 있는 자리를 열어 준다.
@@ -363,7 +371,7 @@ def api_reveal():
     issue = _current()
     path = load().path("html_dir") / (issue.slug + ".html")
     if not path.exists():
-        return jsonify({"ok": False, "error": "확정본이 아직 없습니다"}), 404
+        return jsonify({"ok": False, "error": "아직 만들어진 파일이 없습니다"}), 404
     try:
         if _sys.platform == "darwin":
             subprocess.run(["open", "-R", str(path)], check=False)
@@ -415,7 +423,7 @@ def api_telegram_send():
     if not url and attach is None:
         return jsonify({
             "ok": False,
-            "error": "발행본이 없어 첨부할 파일이 없습니다. 먼저 [발행] 을 누르세요.",
+            "error": "첨부할 파일이 없습니다. 먼저 [동향지 파일 만들기] 를 누르세요.",
         }), 400
     try:
         # 사람이 화면에서 고친 문구가 있으면 그대로 보낸다

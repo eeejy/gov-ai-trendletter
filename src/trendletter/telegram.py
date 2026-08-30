@@ -43,6 +43,18 @@ def _creds(cfg: Config, admin: bool = False) -> tuple:
 
 
 # ---------------------------------------------------------------- 요약문
+def _clip(text: str, limit: int) -> str:
+    """글자 수로 자르되 낱말 가운데를 끊지 않는다."""
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    space = cut.rfind(" ")
+    if space > limit * 0.6:          # 너무 많이 잘려 나가면 그냥 글자 수로
+        cut = cut[:space]
+    return cut.rstrip(" ,·-") + "…"
+
+
 def _fallback_summary(issue: Issue, cfg: Config) -> str:
     """Claude 를 못 쓸 때 쓰는 규칙 기반 요약."""
     lines = [
@@ -62,10 +74,14 @@ def _fallback_summary(issue: Issue, cfg: Config) -> str:
     for i, it in enumerate(issue.items[: int(cfg.get("telegram.max_items", 6))]):
         mark = marks[i] if i < len(marks) else "\u25aa\ufe0f"
         hot = "🔴 " if it.impact == "높음" else ""
-        lines.append("%s %s%s" % (mark, hot, it.title[:34]))
+        lines.append("%s %s%s" % (mark, hot, _clip(it.title, 32)))
+        # 본문 첫 줄에서 무슨 일인지만 뽑는다. 앞머리 기호(ㅇ - *)는 뗀다
+        gist = next((ln.lstrip("ㅇ-*∙· ").strip() for ln in it.body if ln.strip()), "")
+        if gist:
+            lines.append("   %s" % _clip(gist, 40))
         note = it.note.strip()
         if note:
-            lines.append("   → %s" % note[:44])
+            lines.append("   → %s" % _clip(note, 38))
     return "\n".join(lines)
 
 
@@ -86,6 +102,9 @@ def summarize(issue: Issue, cfg: Optional[Config] = None) -> str:
             {
                 "no": it.no,
                 "title": it.title,
+                # 무슨 일이 있었는지 한 줄을 쓰려면 본문이 있어야 한다.
+                # 앞 세 줄이면 사건의 뼈대는 다 들어 있다.
+                "body": [ln for ln in it.body[:3]],
                 "impact": it.impact,
                 "note_kind": it.note_kind,
                 "note": it.note,
@@ -164,7 +183,7 @@ def send(
 
         path = _P(html_file)
         if not path.exists():
-            out["file_error"] = "첨부할 파일이 없습니다 (확정본을 먼저 만드세요)"
+            out["file_error"] = "첨부할 파일이 없습니다 ([동향지 파일 만들기] 를 먼저 누르세요)"
         else:
             # 파일명에 한글·괄호가 있으면 기기에 따라 내려받기나 열기가 막힌다.
             # 보낼 때만 영문 이름으로 바꾼다. (원본 파일명은 그대로 둔다)

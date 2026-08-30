@@ -203,6 +203,39 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
 .modal-meta{display:flex;gap:12px;margin-top:8px}
 .modal-btns{display:flex;gap:8px;margin-top:16px;align-items:center}
 
+/* 처음 쓰는 담당자가 "다음에 뭘 누르지" 로 막히지 않게, 항상 한 줄로 알려준다 */
+.pick{display:inline-flex;flex-direction:column;gap:2px}
+.pick small{font-size:10px;color:var(--gray);letter-spacing:.02em;padding-left:2px}
+.mini.danger:hover{border-color:var(--hot,#FF4D6D);color:var(--hot,#FF4D6D)}
+details.adv{margin:12px 0;border:1px solid var(--line);border-radius:8px;background:var(--sky-xlt)}
+details.adv>summary{cursor:pointer;padding:9px 12px;font-size:13px;font-weight:600;
+  color:var(--ink);list-style:none;display:flex;align-items:center;gap:7px}
+details.adv>summary::-webkit-details-marker{display:none}
+details.adv>summary::before{content:'▸';color:var(--gray);font-size:11px}
+details.adv[open]>summary::before{content:'▾'}
+details.adv>summary:hover{color:var(--blue)}
+details.adv>*:not(summary){margin-left:12px;margin-right:12px}
+details.adv>*:last-child{margin-bottom:10px}
+.hint{font-size:11.5px;color:var(--gray);line-height:1.6;margin:8px 0 0}
+.hint.center{text-align:center;margin-top:7px}
+.intro{position:relative;max-width:1400px;margin:14px auto 0;padding:16px 20px;
+  background:var(--sky-xlt);border:1px solid var(--sky-lt);border-radius:10px;
+  font-size:13px;line-height:1.7;color:var(--ink)}
+.intro>b{display:block;margin-bottom:8px;font-size:14px;color:var(--blue)}
+.intro ol{margin:0;padding-left:20px}
+.intro li{margin:4px 0}
+.intro p{margin:10px 0 0;color:var(--gray);font-size:12.5px}
+.intro-x{position:absolute;top:10px;right:12px;border:0;background:transparent;
+  color:var(--gray);font-size:15px;cursor:pointer;padding:4px 7px;border-radius:6px}
+.intro-x:hover{background:#fff;color:var(--ink)}
+.guide{max-width:1400px;margin:0 auto;padding:11px 20px 0;display:flex;
+  align-items:center;gap:10px;font-size:13.5px;color:var(--ink)}
+.guide-num{display:inline-flex;align-items:center;justify-content:center;
+  width:21px;height:21px;border-radius:50%;background:var(--blue);color:#fff;
+  font-size:11.5px;font-weight:700;flex:0 0 auto}
+.guide b{color:var(--blue)}
+.guide.done .guide-num{background:var(--tr-dev,#38F0A8);color:#0A5B3C}
+header .divider{width:1px;height:20px;background:var(--line);margin:0 3px}
 #log{font-family:var(--mono);font-size:12px;color:var(--gray);padding:0 20px 24px;white-space:pre-wrap;
      max-width:1400px;margin:0 auto}
 #log b{color:var(--blue)}
@@ -218,17 +251,37 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
     <li data-s="make"><b>1</b>만들기</li>
     <li data-s="edit"><b>2</b>손질</li>
     <li data-s="preview"><b>3</b>미리보기</li>
-    <li data-s="publish"><b>4</b>확정본</li>
-    <li data-s="send"><b>5</b>전송</li>
+    <li data-s="publish"><b>4</b>파일 만들기</li>
+    <li data-s="send"><b>5</b>배포</li>
   </ol>
   <span id="saveState" class="savestate">저장됨</span>
+  <button class="ghost" onclick="$('intro').hidden=false;window.scrollTo(0,0)" title="쓰는 순서 다시 보기">도움말</button>
   <button id="btnHist" class="ghost" onclick="showHist()" title="자동 저장된 이전 내용으로 되돌리기">되돌리기</button>
-  <button id="btnPreview" onclick="preview()" title="브라우저에서 결과물 확인">미리보기</button>
-  <button id="btnPublish" class="publish" onclick="publish()"
-          title="확정본 HTML 파일 만들기 (텔레그램 첨부에 쓰입니다)">확정본 만들기</button>
-  <button id="btnDown" onclick="reveal()" title="확정본이 저장된 폴더를 엽니다">폴더 열기</button>
-  <button id="btnTg" onclick="tgPreview()" title="요약 + 확정본 파일 전송">텔레그램 전송</button>
+  <button id="btnPreview" onclick="preview()">미리보기</button>
+  <button id="btnPublish" class="publish" onclick="publish()">동향지 파일 만들기</button>
+  <span class="divider" title="아래 둘 중 편한 쪽으로 배포하시면 됩니다"></span>
+  <button id="btnDown" onclick="reveal()">파일 위치 열기</button>
+  <button id="btnTg" onclick="tgPreview()">텔레그램 보내기</button>
 </header>
+
+<div id="intro" class="intro" hidden>
+  <button class="intro-x" onclick="closeIntro()" title="닫기">✕</button>
+  <b>처음이신가요? 이렇게 씁니다.</b>
+  <ol>
+    <li><b>이번 주 동향지 만들기</b> — 14곳에서 자료를 모아 초안까지 만듭니다 (3~5분). 그동안 다른 일 하셔도 됩니다.</li>
+    <li><b>항목 손질</b> — 오른쪽 카드를 읽고 제목·본문·시사점을 고칩니다. 뺄 건 <b>빼기</b>, 우리청 소식은 <b>+ 우리청 내부 소식 직접 추가</b>. 저장 버튼은 없습니다. 자동으로 저장됩니다.</li>
+    <li><b>미리보기</b> — 직원들이 볼 화면 그대로 새 탭에서 열립니다.</li>
+    <li><b>동향지 파일 만들기</b> — 배포할 HTML 파일 하나가 만들어집니다.</li>
+    <li><b>배포</b> — <b>텔레그램 보내기</b> 로 채널에 보내거나, <b>파일 위치 열기</b> 로 파일을 꺼내 메일에 첨부합니다.</li>
+  </ol>
+  <p>잘못 고쳤으면 오른쪽 위 <b>되돌리기</b> 로 이전 시점으로 돌아갈 수 있습니다.
+     화면 맨 위에 <b>지금 할 일</b> 이 계속 표시되니 그대로 따라가시면 됩니다.</p>
+</div>
+
+<div id="guide" class="guide">
+  <span id="guideNum" class="guide-num">1</span>
+  <span id="guideText">준비 중…</span>
+</div>
 
 <main>
   <!-- 좌측: 회차 정보 + 수집 설정 -->
@@ -260,7 +313,8 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
     </div>
 
     <h2>수집 설정</h2>
-    <label>수집원</label>
+
+    <label>어디서 모아 오는지 <span class="track">{{ sources|selectattr('enabled')|list|length }}곳 · 그대로 두셔도 됩니다</span></label>
     <div class="srcbtns">
       <button class="mini" onclick="pickAll(true)">전체 선택</button>
       <button class="mini" onclick="pickAll(false)">전체 해제</button>
@@ -270,28 +324,34 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
       <div>
         <input type="checkbox" class="src" value="{{ s.id }}" {% if s.enabled %}checked{% endif %}>
         <span>{{ s.name }}</span>
-        <span class="track">{{ s.track }}/{{ s.role }}</span>
+        <span class="track">{{ track_ko(s.track) }}{% if s.role != 'primary' %} · {{ role_ko(s.role) }}{% endif %}</span>
       </div>
       {% endfor %}
     </div>
+    <p class="hint">체크를 풀면 그 기관 소식은 이번 호에서 빠집니다.</p>
 
     <label class="check">
       <input type="checkbox" id="use_llm" checked>
-      <span>Claude로 본문·시사점 작성 <span id="llmState" class="track"></span>
-        <small>끄면 수집 요약을 기계적으로 쪼갠 뼈대만 만듭니다. 켜면 1~2분 더 걸립니다.</small>
+      <span>Claude가 본문과 시사점을 써 줍니다 <span id="llmState" class="track"></span>
+        <small>권장. 끄면 기사 요약을 기계적으로 자른 뼈대만 나와서 손볼 게 많아집니다.
+        켜면 1~2분 더 걸립니다.</small>
       </span>
     </label>
 
-    <label class="check">
-      <input type="checkbox" id="fresh">
-      <span>저장해 둔 응답 무시하고 새로 내려받기
-        <small>같은 주소를 <b id="cacheH">6</b>시간 안에 다시 부르면 저장해 둔 응답을 씁니다.
-        같은 날 두 번 돌릴 때 빠르고 사이트에 부담도 적습니다.
-        그 사이 새 기사가 올라왔을 때만 체크하세요. (더 느립니다)</small>
-      </span>
-    </label>
+    <details class="adv">
+      <summary>고급 <span class="track">(처음부터 새로 수집해서 만들기)</span></summary>
+      <label class="check">
+        <input type="checkbox" id="fresh">
+        <span>사이트를 처음부터 다시 읽기
+          <small>한 번 읽은 페이지는 <b id="cacheH">6</b>시간 동안 저장해 두고 다시 씁니다.
+          같은 날 두 번 돌릴 때 훨씬 빠르고 상대 사이트에도 부담이 적습니다.
+          방금 올라온 기사를 꼭 넣어야 할 때만 켜세요. (느려집니다)</small>
+        </span>
+      </label>
+    </details>
 
     <button id="makeBtn" class="primary" style="width:100%;margin-top:16px" onclick="collect()">이번 주 동향지 만들기</button>
+    <p class="hint center">자료 수집부터 초안까지 한 번에 합니다 · 보통 3~5분</p>
 
     <div id="healthBox" class="healthbox" hidden></div>
 
@@ -310,9 +370,10 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
       </div>
     </div>
 
-    <h2 style="margin-top:26px">후보 목록</h2>
-    <p class="sub">초안에 뽑히지 않은 이슈입니다.</p>
-    <button class="mini" onclick="loadCandidates()">후보 불러오기</button>
+    <h2 style="margin-top:26px">싣지 않은 이슈</h2>
+    <p class="sub">모으긴 했지만 이번 호에 뽑히지 않은 것들입니다.
+      넣고 싶은 게 있으면 [추가] 를 누르세요.</p>
+    <button class="mini" onclick="loadCandidates()">목록 보기</button>
     <div id="cands"></div>
   </section>
 
@@ -412,27 +473,30 @@ function render(){
       ${(it.similar_to&&it.similar_to.length)?`<div class="dup">⚠ 같은 사건일 수 있습니다 — ${it.similar_to.map(esc).join(' / ')}. 확인 후 한쪽을 제외하세요.</div>`:''}
       <div class="row">
         <span class="no">${String(i+1).padStart(2,'0')}</span>
-        <select onchange="upd(${i},'field_label',this.value)">${opt(FIELDS,it.field_label)}</select>
-        <select onchange="upd(${i},'audience',this.value)">${opt(AUD,it.audience)}</select>
-        <select onchange="upd(${i},'impact',this.value)">${opt(IMP,it.impact)}</select>
-        ${it.locked?'<span class="lockbadge">수정함</span>':''}
+        <span class="pick"><small>분야</small>
+          <select title="동향지에 표시될 분야" onchange="upd(${i},'field_label',this.value)">${opt(FIELDS,it.field_label)}</select></span>
+        <span class="pick"><small>누가 볼 내용</small>
+          <select title="이 소식을 특히 챙겨야 할 부서" onchange="upd(${i},'audience',this.value)">${opt(AUD,it.audience)}</select></span>
+        <span class="pick"><small>우리청 영향</small>
+          <select title="우리청 업무에 미치는 영향의 크기" onchange="upd(${i},'impact',this.value)">${opt(IMP,it.impact)}</select></span>
+        ${it.locked?'<span class="lockbadge" title="직접 고친 항목입니다. [처음부터 다시 쓰기] 를 눌러도 덮어쓰지 않습니다">직접 고침</span>':''}
         <span class="sp"></span>
-        <button class="mini" onclick="move(${i},-1)" ${i===0?'disabled':''}>↑</button>
-        <button class="mini" onclick="move(${i},1)" ${i===issue.items.length-1?'disabled':''}>↓</button>
-        <button class="mini" onclick="rewrite(${it.no})">Claude 다시 작성</button>
-        <button class="mini" onclick="toggleLock(${i})">${it.locked?'잠금 해제':'잠금'}</button>
-        <button class="mini" onclick="remove(${i})">제외</button>
+        <button class="mini" onclick="move(${i},-1)" ${i===0?'disabled':''} title="위로 올리기">↑</button>
+        <button class="mini" onclick="move(${i},1)" ${i===issue.items.length-1?'disabled':''} title="아래로 내리기">↓</button>
+        <button class="mini" onclick="rewrite(${it.no})" title="이 항목의 본문과 시사점을 Claude가 새로 씁니다">처음부터 다시 쓰기</button>
+        <button class="mini" onclick="toggleLock(${i})" title="${it.locked?'다시 쓰기를 허용합니다':'내가 고친 내용을 Claude가 덮어쓰지 못하게 합니다'}">${it.locked?'다시 쓰기 허용':'내 수정 보호'}</button>
+        <button class="mini danger" onclick="remove(${i})" title="이번 호에서 뺍니다">빼기</button>
       </div>
       <label>제목</label>
       <input value="${esc(it.title)}" onchange="upd(${i},'title',this.value)">
-      <label>출처 표기</label>
+      <label>출처 표기 <span class="track">동향지에 〈기관 · 날짜〉 형태로 실립니다</span></label>
       <input value="${esc(it.source_label)}" onchange="upd(${i},'source_label',this.value)">
-      <label>본문 &nbsp;<span class="track">ㅇ 1단계 / - 2단계 / * 3단계</span></label>
+      <label>본문 <span class="track">줄 앞의 기호가 들여쓰기 단계입니다 &nbsp;ㅇ 큰 줄기 &nbsp;- 그 아래 &nbsp;* 더 아래</span></label>
       <textarea rows="6" onchange="updBody(${i},this.value)">${esc(it.body.join('\n'))}</textarea>
 
       <div class="notetabs">
         ${KINDS.map(k=>`<button class="${it.note_kind===k?'on':''}" onclick="setKind(${i},'${k}')">${k}</button>`).join('')}
-        <span class="tag">둘 다 초안이 있습니다. 선택한 쪽이 발행됩니다.</span>
+        <span class="tag">둘 다 초안이 있습니다. 파랗게 켜진 쪽이 실립니다.</span>
       </div>
       <div class="notewrap">
         <textarea rows="2" onchange="updNote(${i},this.value)">${esc(it.notes[it.note_kind]||'')}</textarea>
@@ -443,7 +507,7 @@ function render(){
 
       ${(it.links&&it.links.length)?`<div class="links">${it.links.map(l=>`<a href="${l.url}" target="_blank">${esc(l.label)}</a>`).join('')}</div>`:''}
     </div>`).join('') ||
-    '<div class="empty">항목이 없습니다.<br>좌측에서 <b>이번 주 동향지 만들기</b>를 누르세요.</div>';
+    '<div class="empty">아직 아무것도 없습니다.<br>왼쪽 아래 <b>이번 주 동향지 만들기</b> 를 눌러 시작하세요.</div>';
 }
 
 let saveTimer = null;
@@ -488,6 +552,18 @@ async function restore(file, when){
   }catch(e){ alert('되돌리지 못했습니다: ' + e.message); }
 }
 
+// 처음 여는 사람에게만 한 번 보여준다. 닫으면 이 브라우저에서는 다시 뜨지 않는다.
+const INTRO_KEY = 'trendletter.intro.seen';
+function closeIntro(){
+  $('intro').hidden = true;
+  try{ localStorage.setItem(INTRO_KEY, '1'); }catch(e){}
+}
+function maybeIntro(){
+  let seen = false;
+  try{ seen = localStorage.getItem(INTRO_KEY) === '1'; }catch(e){}
+  if(!seen) $('intro').hidden = false;
+}
+
 function setSaveState(s){
   const el = $('saveState');
   el.textContent = s;
@@ -513,7 +589,12 @@ function updBody(i,v){ issue.items[i].body=v.split('\n').filter(x=>x.trim()); is
 function updNote(i,v){ const it=issue.items[i]; it.notes[it.note_kind]=v; it.note=v; it.locked=true; touched(); render(); }
 function setKind(i,k){ const it=issue.items[i]; it.note_kind=k; it.note=it.notes[k]||''; touched(); render(); }
 function toggleLock(i){ issue.items[i].locked=!issue.items[i].locked; touched(); render(); }
-function remove(i){ issue.items.splice(i,1); touched(); render(); }
+function remove(i){
+  const it = issue.items[i];
+  if(it.locked && !confirm(`「${it.title}」\n\n직접 고치신 항목입니다. 이번 호에서 뺄까요?`)) return;
+  issue.items.splice(i,1); touched(); render();
+  log('뺐습니다: ' + esc(it.title) + ' · 잘못 뺐으면 상단 [되돌리기]');
+}
 function move(i,d){ const t=issue.items[i]; issue.items[i]=issue.items[i+d]; issue.items[i+d]=t; touched(); render(); }
 
 async function post(url, body){
@@ -537,15 +618,38 @@ function step(){
     li.classList.toggle('now', i === at);
     li.classList.toggle('done', i < at);
   });
-  // 텔레그램은 발행한 뒤에만. 발행 전에 보내면 전문 링크가 가리킬 파일이 없다.
+  // 파일을 만들기 전에는 보낼 것도, 열어 볼 것도 없다.
   $('btnTg').disabled = !(published && !dirty);
   $('btnDown').disabled = $('btnTg').disabled;
+
+  // 처음 쓰는 담당자를 위해 "지금 할 일" 을 한 줄로 계속 알려준다.
+  const g = $('guideText'), gn = $('guideNum');
+  const done = s === 'send';
+  $('guide').classList.toggle('done', done);
+  gn.textContent = done ? '✓' : String(at + 1);
+  const HELP = {
+    make:    '왼쪽 <b>[이번 주 동향지 만들기]</b> 를 누르세요. 자료를 모아 초안까지 3~5분 걸립니다.',
+    edit:    '오른쪽 항목을 읽어 보고 고치세요. 뺄 건 <b>[빼기]</b>, 우리청 소식은 <b>[+ 우리청 내부 소식 직접 추가]</b>.' +
+             ' 고친 내용은 자동 저장됩니다. 다 됐으면 <b>[미리보기]</b> 로 확인하세요.',
+    preview: '<b>[미리보기]</b> 로 직원들이 볼 화면을 확인하세요.',
+    publish: '<b>[동향지 파일 만들기]</b> 를 누르면 배포할 HTML 파일 하나가 만들어집니다.',
+    send:    '다 됐습니다. <b>[텔레그램 보내기]</b> 로 보내거나, <b>[파일 위치 열기]</b> 로 파일을 꺼내 메일에 첨부하세요.',
+  };
+  g.innerHTML = dirty && published
+    ? '내용을 고쳤습니다. <b>[동향지 파일 만들기]</b> 를 다시 눌러 파일에 반영하세요.'
+    : HELP[s];
+
+  // 버튼 설명은 눌러도 되는지 여부까지 알려준다
+  $('btnPreview').title = has ? '직원들이 볼 화면을 새 탭에서 확인합니다'
+                              : '먼저 동향지를 만들어야 합니다';
+  $('btnPublish').title = has ? '배포할 HTML 파일 하나를 만듭니다 (data/issues 폴더)'
+                              : '먼저 동향지를 만들어야 합니다';
   $('btnDown').title = $('btnDown').disabled
-    ? '확정본을 먼저 만들어야 열어 볼 파일이 생깁니다'
-    : '확정본이 저장된 폴더를 엽니다';
+    ? '[동향지 파일 만들기] 를 먼저 누르세요'
+    : '파일이 저장된 폴더를 엽니다. 그대로 메일에 첨부하시면 됩니다';
   $('btnTg').title = $('btnTg').disabled
-    ? '확정본을 먼저 만들어야 첨부할 파일이 생깁니다'
-    : '요약 + 확정본 파일 전송';
+    ? '[동향지 파일 만들기] 를 먼저 누르세요'
+    : '짧은 요약과 함께 동향지 파일을 채널로 보냅니다';
   $('btnPreview').disabled = !has;
   $('btnPublish').disabled = !has;
 
@@ -624,9 +728,9 @@ async function save(){ try{ syncChip(); await post('/api/save',issue); setSaveSt
 async function preview(){ try{ syncChip(); await post('/api/preview',issue); window.open('/preview','_blank'); log('미리보기를 새 탭에 열었습니다.');}catch(e){log('실패: '+e.message);} }
 async function publish(){
   syncChip();
-  if(!confirm(`제${defaults.year}-${issue.number}호 확정본을 만듭니다.\n\nHTML 파일이 data/issues 에 저장되고, 이 파일이 텔레그램에 첨부됩니다.\n(전송은 별도 버튼입니다)`)) return;
+  if(!confirm(`제${defaults.year}-${issue.number}호 동향지 파일을 만듭니다.\n\n· data/issues 폴더에 HTML 파일 하나가 저장됩니다\n· 이 파일만 있으면 어디서든 열립니다 (인터넷 연결 불필요)\n· 보내는 건 다음 단계입니다`)) return;
   const b = $('btnPublish'); const old = b.textContent;
-  b.disabled = true; b.textContent = '만드는 중…';
+  b.disabled = true; b.textContent = '파일 만드는 중…';
   try{
     let d;
     try{ d = await post('/api/publish', issue); }
@@ -635,9 +739,9 @@ async function publish(){
       d = await post('/api/publish?force=1', issue);
     }
     published = true; dirty = false; step();
-    log('확정본 저장 → ' + esc(d.path) +
+    log('동향지 파일 저장 → ' + esc(d.path) +
         ' · <a href="#" onclick="reveal();return false">폴더 열기</a>');
-    if(confirm('확정본을 만들었습니다.\n\n[확인] 텔레그램으로 보낼 내용을 확인합니다\n[취소] 보내지 않습니다 — 상단 [폴더 열기] 로 파일을 꺼내\n         메일·메신저에 직접 첨부하시면 됩니다')){
+    if(confirm('동향지 파일을 만들었습니다.\n\n이어서 텔레그램으로 보낼까요?\n\n[확인]  보낼 문구를 먼저 확인합니다\n[취소]  보내지 않습니다 — [파일 위치 열기] 로 파일을 꺼내\n        메일에 직접 첨부하셔도 됩니다')){
       tgPreview();
     }
   }catch(e){ log('실패: ' + e.message); }
@@ -650,7 +754,7 @@ async function reveal(){
     const d = await post('/api/reveal');
     log(d.ok ? '폴더를 열었습니다 — 이 파일을 그대로 메일·메신저에 첨부하면 됩니다.<br>' + esc(d.path)
              : '폴더를 열지 못했습니다. 파일 위치: ' + esc(d.path||''));
-  }catch(e){ log('확정본이 아직 없습니다. [확정본 만들기] 를 먼저 누르세요.'); }
+  }catch(e){ log('아직 만들어진 파일이 없습니다. [동향지 파일 만들기] 를 먼저 누르세요.'); }
 }
 
 let tgTick = null;
@@ -684,7 +788,7 @@ async function tgPreview(){
     $('tgLen').textContent = r.length + '자';
     $('tgUrl').textContent = r.url ? ('전문 주소 ' + r.url)
       : (r.attach ? ('📎 ' + r.attach + ' 첨부됨')
-                  : '⚠️ 발행본이 없어 전문을 첨부할 수 없습니다 — 먼저 [발행]');
+                  : '⚠️ 첨부할 파일이 없습니다 — 먼저 [동향지 파일 만들기]');
     tgBusy(false);
     log('문구 준비 완료');
   }catch(e){
@@ -720,7 +824,7 @@ async function tgSend(){
       // 요약은 갔지만 전문 파일이 안 붙은 상태다. 조용히 넘기면 안 된다.
       log('<b>요약은 보냈지만 전문 파일은 못 붙였습니다</b> — ' + esc(r.file_error));
       alert('요약 메시지는 전송됐습니다.\n\n다만 전문 HTML 파일이 첨부되지 않았습니다:\n'
-            + r.file_error + '\n\n[확정본 만들기] 를 누른 뒤 다시 보내 주세요.');
+            + r.file_error + '\n\n[동향지 파일 만들기] 를 누른 뒤 다시 보내 주세요.');
     } else if(r.file_message_id){
       log('텔레그램 발송 완료 — 요약 + 전문 파일 (message_id ' + r.message_id + ')');
     } else {
@@ -763,7 +867,7 @@ function fillForm(){
 (async function init(){
   defaults = await (await fetch('/api/defaults')).json();
   $('cacheH').textContent = defaults.cache_hours;
-  $('llmState').textContent = defaults.llm ? '(claude 사용 가능)' : '(claude 없음 — 뼈대만)';
+  $('llmState').textContent = defaults.llm ? '' : '— Claude 가 설치되지 않아 끕니다';
   if(!defaults.llm){ $('use_llm').checked = false; $('use_llm').disabled = true; }
   issue = await (await fetch('/api/draft')).json();
   if(!issue.items.length){
@@ -773,6 +877,7 @@ function fillForm(){
     issue.period_to = defaults.period_to;
   }
   fillForm(); render();
+  maybeIntro();
 
   // 새로고침했는데 작업이 돌고 있으면 진행 상태를 이어서 보여 준다
   try{
