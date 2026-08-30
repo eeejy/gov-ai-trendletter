@@ -226,7 +226,7 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
   <button id="btnPreview" onclick="preview()" title="브라우저에서 결과물 확인">미리보기</button>
   <button id="btnPublish" class="publish" onclick="publish()"
           title="확정본 HTML 파일 만들기 (텔레그램 첨부에 쓰입니다)">확정본 만들기</button>
-  <button id="btnDown" onclick="download()" title="확정본 HTML 파일을 내려받습니다">내려받기</button>
+  <button id="btnDown" onclick="reveal()" title="확정본이 저장된 폴더를 엽니다">폴더 열기</button>
   <button id="btnTg" onclick="tgPreview()" title="요약 + 확정본 파일 전송">텔레그램 전송</button>
 </header>
 
@@ -541,8 +541,8 @@ function step(){
   $('btnTg').disabled = !(published && !dirty);
   $('btnDown').disabled = $('btnTg').disabled;
   $('btnDown').title = $('btnDown').disabled
-    ? '확정본을 먼저 만들어야 내려받을 파일이 생깁니다'
-    : '확정본 HTML 파일을 내려받습니다';
+    ? '확정본을 먼저 만들어야 열어 볼 파일이 생깁니다'
+    : '확정본이 저장된 폴더를 엽니다';
   $('btnTg').title = $('btnTg').disabled
     ? '확정본을 먼저 만들어야 첨부할 파일이 생깁니다'
     : '요약 + 확정본 파일 전송';
@@ -635,26 +635,22 @@ async function publish(){
       d = await post('/api/publish?force=1', issue);
     }
     published = true; dirty = false; step();
-    log('확정본 저장 → ' + d.path +
-        ' · <a href="#" onclick="download();return false">내려받기</a>' +
+    log('확정본 저장 → ' + esc(d.path) +
         ' · <a href="#" onclick="reveal();return false">폴더 열기</a>');
-    if(confirm('확정본을 만들었습니다.\n\n[확인] 텔레그램으로 보낼 내용을 확인합니다\n[취소] 보내지 않습니다 — 상단 [내려받기] 로 파일만 챙기거나,\n         진행 기록의 [폴더 열기] 로 저장 위치를 열 수 있습니다')){
+    if(confirm('확정본을 만들었습니다.\n\n[확인] 텔레그램으로 보낼 내용을 확인합니다\n[취소] 보내지 않습니다 — 상단 [폴더 열기] 로 파일을 꺼내\n         메일·메신저에 직접 첨부하시면 됩니다')){
       tgPreview();
     }
   }catch(e){ log('실패: ' + e.message); }
   finally{ b.textContent = old; b.disabled = false; }
 }
 // 텔레그램을 안 쓰고 파일만 챙길 때. 메일·메신저로 직접 돌리는 경우다.
-function download(){
-  window.location = '/download';
-  log('확정본을 내려받습니다. 받은 파일은 그대로 메일·메신저로 보내면 됩니다.');
-}
-
+// 파일은 이미 이 PC 에 있으므로 내려받지 않고 있는 자리를 연다.
 async function reveal(){
   try{
     const d = await post('/api/reveal');
-    log(d.ok ? '폴더를 열었습니다 → ' + d.path : '폴더를 열지 못했습니다 → ' + (d.path||''));
-  }catch(e){ log('확정본이 아직 없습니다.'); }
+    log(d.ok ? '폴더를 열었습니다 — 이 파일을 그대로 메일·메신저에 첨부하면 됩니다.<br>' + esc(d.path)
+             : '폴더를 열지 못했습니다. 파일 위치: ' + esc(d.path||''));
+  }catch(e){ log('확정본이 아직 없습니다. [확정본 만들기] 를 먼저 누르세요.'); }
 }
 
 let tgTick = null;
