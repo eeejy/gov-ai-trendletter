@@ -350,6 +350,46 @@ def api_publish():
     return jsonify({"ok": True, "path": str(path)})
 
 
+@app.get("/download")
+def download_issue():
+    """확정본 HTML 을 브라우저로 바로 내려받는다.
+
+    텔레그램을 안 쓰고 메일·메신저로 직접 돌리거나, 그냥 파일만 챙길 때 쓴다.
+    파일명에 한글·괄호가 있으면 기기에 따라 열기가 막히므로 영문으로 바꿔 준다.
+    """
+    issue = _current()
+    path = load().path("html_dir") / (issue.slug + ".html")
+    if not path.exists():
+        return "확정본이 아직 없습니다. [확정본 만들기] 를 먼저 누르세요.", 404
+    return send_file(
+        str(path), as_attachment=True,
+        download_name="AI-trend-%d-%02d.html" % (issue.year, issue.number),
+        mimetype="text/html",
+    )
+
+
+@app.post("/api/reveal")
+def api_reveal():
+    """확정본이 있는 폴더를 탐색기/파인더로 연다."""
+    import subprocess
+    import sys as _sys
+
+    issue = _current()
+    path = load().path("html_dir") / (issue.slug + ".html")
+    if not path.exists():
+        return jsonify({"ok": False, "error": "확정본이 아직 없습니다"}), 404
+    try:
+        if _sys.platform == "darwin":
+            subprocess.run(["open", "-R", str(path)], check=False)
+        elif _sys.platform.startswith("win"):
+            subprocess.run(["explorer", "/select,", str(path)], check=False)
+        else:
+            subprocess.run(["xdg-open", str(path.parent)], check=False)
+    except Exception as exc:  # noqa: BLE001 - 폴더를 못 열어도 파일은 거기 있다
+        return jsonify({"ok": False, "error": str(exc)[:120], "path": str(path)}), 200
+    return jsonify({"ok": True, "path": str(path)})
+
+
 @app.post("/api/telegram/preview")
 def api_telegram_preview():
     """보낼 문구를 미리 만들어 본다. 실제로 보내지 않는다."""

@@ -174,7 +174,8 @@ def send(
                     API % (token, "sendDocument"),
                     data={
                         "chat_id": chat_id,
-                        "caption": "%s 전문 — 받아서 열면 그대로 보입니다" % issue.label,
+                        # 안내 문구는 바로 위 메시지에 이미 있다. 여기선 무슨 파일인지만.
+                        "caption": "%s 전문" % issue.label,
                     },
                     files={"document": (safe, fp, "text/html")},
                     timeout=120,
