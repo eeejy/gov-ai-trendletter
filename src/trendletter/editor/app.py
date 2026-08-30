@@ -470,7 +470,26 @@ def api_add_candidate(index: int):
     cl = Cluster(articles=[Article.from_dict(a) for a in raw["articles"]])
     cl.score = raw.get("score", 0.0)
     cl.onto = raw.get("onto", {})
-    return jsonify(pipeline.to_item(cl, len(issue.items) + 1).to_dict())
+    item = pipeline.to_item(cl, len(issue.items) + 1)
+
+    # to_item 은 수집 요약을 기계적으로 자른 뼈대일 뿐이다. 초안 생성 때 뽑힌
+    # 항목은 뒤이어 polish() 가 Claude 로 다시 쓰는데, 나중에 손으로 추가한
+    # 후보는 그 과정을 거치지 않아 혼자만 문체가 달랐다. 여기서 같이 맞춘다.
+    if llm.available() and not request.args.get("skip_llm"):
+        try:
+            drafted = llm.draft_item(llm.cluster_payload(cl), slot=item.no - 1)
+        except Exception as exc:  # noqa: BLE001 - 실패해도 뼈대는 돌려준다
+            return jsonify(dict(item.to_dict(), llm_error=str(exc)[:160]))
+        for key in ("field_label", "audience", "impact", "title", "source_label"):
+            if drafted.get(key):
+                setattr(item, key, drafted[key])
+        if drafted.get("body"):
+            item.body = drafted["body"]
+        notes = drafted.get("notes") or {}
+        for kind in ("시사점", "향후계획"):     # note 는 읽기 전용 프로퍼티다
+            if notes.get(kind):
+                item.notes[kind] = notes[kind]
+    return jsonify(item.to_dict())
 
 
 @app.post("/api/item/blank")

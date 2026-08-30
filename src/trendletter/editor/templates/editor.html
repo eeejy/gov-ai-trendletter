@@ -204,6 +204,14 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
 .modal-btns{display:flex;gap:8px;margin-top:16px;align-items:center}
 
 /* 처음 쓰는 담당자가 "다음에 뭘 누르지" 로 막히지 않게, 항상 한 줄로 알려준다 */
+.item{position:relative}
+.item-busy{position:absolute;inset:0;z-index:5;border-radius:inherit;
+  background:rgba(255,255,255,.86);backdrop-filter:blur(1.5px);
+  display:flex;align-items:center;justify-content:center;gap:13px}
+.item-busy[hidden]{display:none}
+.item-busy b{display:block;font-size:14px;color:var(--ink)}
+.item-busy small{display:block;font-size:12px;color:var(--gray);margin-top:3px}
+.cand.busy{opacity:.55;pointer-events:none}
 .pick{display:inline-flex;flex-direction:column;gap:2px}
 .pick small{font-size:10px;color:var(--gray);letter-spacing:.02em;padding-left:2px}
 .mini.danger:hover{border-color:var(--hot,#FF4D6D);color:var(--hot,#FF4D6D)}
@@ -372,7 +380,7 @@ header .divider{width:1px;height:20px;background:var(--line);margin:0 3px}
 
     <h2 style="margin-top:26px">싣지 않은 이슈</h2>
     <p class="sub">모으긴 했지만 이번 호에 뽑히지 않은 것들입니다.
-      넣고 싶은 게 있으면 [추가] 를 누르세요.</p>
+      [추가] 를 누르면 Claude가 우리 형식으로 작성해 넣습니다 (20~40초).</p>
     <button class="mini" onclick="loadCandidates()">목록 보기</button>
     <div id="cands"></div>
   </section>
@@ -469,7 +477,12 @@ function render(){
   $('countLabel').textContent = issue ? `${issue.items.length}건` : '';
   step();
   $('items').innerHTML = issue.items.map((it,i)=>`
-    <div class="item ${it.locked?'locked':''}">
+    <div class="item ${it.locked?'locked':''}" id="item${it.no}">
+      <div class="item-busy" hidden>
+        <span class="spin"></span>
+        <div><b>Claude가 다시 쓰는 중…</b>
+          <small>보통 20~40초 걸립니다 · <span class="etime">0:00</span></small></div>
+      </div>
       ${(it.similar_to&&it.similar_to.length)?`<div class="dup">⚠ 같은 사건일 수 있습니다 — ${it.similar_to.map(esc).join(' / ')}. 확인 후 한쪽을 제외하세요.</div>`:''}
       <div class="row">
         <span class="no">${String(i+1).padStart(2,'0')}</span>
@@ -479,11 +492,11 @@ function render(){
           <select title="이 소식을 특히 챙겨야 할 부서" onchange="upd(${i},'audience',this.value)">${opt(AUD,it.audience)}</select></span>
         <span class="pick"><small>우리청 영향</small>
           <select title="우리청 업무에 미치는 영향의 크기" onchange="upd(${i},'impact',this.value)">${opt(IMP,it.impact)}</select></span>
-        ${it.locked?'<span class="lockbadge" title="직접 고친 항목입니다. [처음부터 다시 쓰기] 를 눌러도 덮어쓰지 않습니다">직접 고침</span>':''}
+        ${it.locked?'<span class="lockbadge" title="직접 고친 항목입니다. 초안을 다시 만들어도 덮어쓰지 않습니다">직접 고침</span>':''}
         <span class="sp"></span>
         <button class="mini" onclick="move(${i},-1)" ${i===0?'disabled':''} title="위로 올리기">↑</button>
         <button class="mini" onclick="move(${i},1)" ${i===issue.items.length-1?'disabled':''} title="아래로 내리기">↓</button>
-        <button class="mini" onclick="rewrite(${it.no})" title="이 항목의 본문과 시사점을 Claude가 새로 씁니다">처음부터 다시 쓰기</button>
+        <button class="mini" onclick="rewrite(${it.no})" title="이 항목의 제목·본문·시사점을 Claude가 처음부터 새로 씁니다 (20~40초)">클로드로 작성하기</button>
         <button class="mini" onclick="toggleLock(${i})" title="${it.locked?'다시 쓰기를 허용합니다':'내가 고친 내용을 Claude가 덮어쓰지 못하게 합니다'}">${it.locked?'다시 쓰기 허용':'내 수정 보호'}</button>
         <button class="mini danger" onclick="remove(${i})" title="이번 호에서 뺍니다">빼기</button>
       </div>
@@ -840,19 +853,67 @@ async function loadCandidates(){
     <div class="cand">
       <div>${esc(c.title)}</div>
       <div class="meta">${esc(c.source)} · ${c.track} · ${(c.score||0).toFixed(1)}점${c.outlets.length>1?(' · '+c.outlets.length+'개 매체'):''}</div>
-      <button class="mini" onclick="addCand(${c.index})">추가</button>
+      <button class="mini" onclick="addCand(${c.index}, this)">추가</button>
       <a class="meta" href="${c.url}" target="_blank" style="margin-left:6px">원문</a>
     </div>`).join('') : '<div class="cand meta">남은 후보가 없습니다.</div>';
 }
+// 항목 카드 위에 덮개를 씌우고 경과 시간을 센다. 다시 그리면 덮개가 날아가므로
+// 이 작업이 끝날 때까지는 render() 를 부르지 않는다.
+function itemBusy(no, on){
+  const card = $('item' + no);
+  if(!card) return null;
+  const box = card.querySelector('.item-busy');
+  if(!box) return null;
+  box.hidden = !on;
+  if(!on) return null;
+  card.scrollIntoView({block:'nearest', behavior:'smooth'});
+  const el = box.querySelector('.etime');
+  let s = 0;
+  const tick = setInterval(()=>{
+    s++; el.textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+  }, 1000);
+  return ()=>{ clearInterval(tick); box.hidden = true; };
+}
+
 async function rewrite(no){
-  log(`<b>${String(no).padStart(2,'0')}번</b> 항목을 Claude로 다시 작성 중… 20~40초 걸립니다.`);
+  const stop = itemBusy(no, true);
+  log(`<b>${String(no).padStart(2,'0')}번</b> 항목을 Claude로 다시 쓰는 중… 20~40초 걸립니다.`);
   try{
     syncChip();
     issue = await post('/api/rewrite',{issue, numbers:[no]});
-    render(); log(`${String(no).padStart(2,'0')}번 다시 작성 완료`);
-  }catch(e){ log('실패: '+e.message); }
+    if(stop) stop();
+    touched(); render();
+    const it = issue.items.find(x=>x.no===no);
+    log(`${String(no).padStart(2,'0')}번 새로 작성했습니다 — ${esc((it&&it.title)||'')}`);
+  }catch(e){
+    if(stop) stop();
+    log('다시 쓰지 못했습니다: '+e.message);
+  }
 }
-async function addCand(i){ issue.items.push(await post('/api/candidates/'+i+'/add')); touched(); render(); }
+
+async function addCand(i, btn){
+  // 후보를 그냥 넣으면 뼈대만 들어와 혼자 문체가 다르다. 서버가 Claude 로
+  // 작성해서 돌려주므로 20~40초 걸린다. 기다리는 줄 알게 표시한다.
+  const card = btn && btn.closest('.cand');
+  if(card) card.classList.add('busy');
+  if(btn) btn.textContent = '작성 중…';
+  log('후보를 Claude가 우리 형식으로 작성하는 중… 20~40초 걸립니다.');
+  try{
+    const it = await post('/api/candidates/'+i+'/add');
+    issue.items.push(it); touched(); render();
+    if(it.llm_error){
+      log('<b>Claude 작성에 실패해 뼈대만 넣었습니다</b> — ' + esc(it.llm_error) +
+          '<br>해당 항목에서 [클로드로 작성하기] 를 눌러 주세요.');
+    } else {
+      log('후보를 추가했습니다 — ' + esc(it.title));
+    }
+    loadCandidates();
+  }catch(e){
+    log('추가하지 못했습니다: '+e.message);
+    if(card) card.classList.remove('busy');
+    if(btn) btn.textContent = '추가';
+  }
+}
 async function addBlank(){ issue.items.push(await post('/api/item/blank')); touched(); render(); }
 
 function fillForm(){
