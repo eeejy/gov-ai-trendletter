@@ -191,11 +191,30 @@ def _document_text(issue: Issue, cfg: Config) -> str:
     return "".join(parts)
 
 
+# 같은 글자 묶음이면 결과가 같다. 미리보기를 누를 때마다 1.6초씩 다시 자르지 않도록
+# 잘라 둔 것을 파일로 남긴다. 항목을 고쳐 글자가 바뀌면 자동으로 새로 만든다.
+def _subset_cache_path(filename: str, text: str):
+    import hashlib
+
+    key = hashlib.sha1(("%s|%s" % (filename, "".join(sorted(set(text))))).encode("utf-8"))
+    d = ROOT / "data" / "cache" / "fonts"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / ("%s.txt" % key.hexdigest()[:20])
+
+
 def _subset(filename: str, text: str) -> str:
     """글꼴에서 쓰이는 글자만 남긴 woff2 를 data URI 로. 실패하면 빈 문자열."""
     path = FONT_DIR / filename
     if not path.exists():
         return ""
+
+    cache = _subset_cache_path(filename, text)
+    if cache.exists():
+        try:
+            return cache.read_text(encoding="ascii")
+        except Exception:  # noqa: BLE001
+            pass
+
     try:
         import base64
         import io
@@ -215,7 +234,12 @@ def _subset(filename: str, text: str) -> str:
         buf = io.BytesIO()
         font.flavor = "woff2"
         font.save(buf)
-        return "data:font/woff2;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+        uri = "data:font/woff2;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+        try:
+            cache.write_text(uri, encoding="ascii")
+        except Exception:  # noqa: BLE001
+            pass
+        return uri
     except Exception:  # noqa: BLE001 - 글꼴은 있으면 좋은 것이지 필수가 아니다
         return ""
 

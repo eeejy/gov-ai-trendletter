@@ -40,6 +40,18 @@ header h1 b{color:var(--blue)}
 .chip{font-family:var(--mono);font-size:12px;color:var(--blue);background:var(--sky-lt);
       padding:5px 11px;border-radius:100px;font-weight:700}
 header .sp{flex:1}
+/* 단계 표시 — 지금 어디까지 왔는지 알려 준다. 막지는 않는다 */
+.steps{display:flex;list-style:none;margin:0;padding:0;gap:2px;align-items:center}
+.steps li{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--gray-lt);
+          padding:4px 9px;border-radius:100px;white-space:nowrap}
+.steps li b{display:inline-flex;align-items:center;justify-content:center;
+            width:17px;height:17px;border-radius:50%;background:var(--gray-lt);
+            color:#fff;font-size:10.5px;font-weight:800}
+.steps li.done{color:var(--gray)}
+.steps li.done b{background:var(--tr-dev,#38F0A8);color:#0A5B3C}
+.steps li.now{color:var(--blue);background:var(--sky-xlt);font-weight:700}
+.steps li.now b{background:var(--blue)}
+@media(max-width:1100px){ .steps li span,.steps li{font-size:0;padding:4px} .steps li b{font-size:10.5px} }
 @media(max-width:700px){
   header{position:static}
   header h1{font-size:15px}
@@ -178,10 +190,17 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
   <h1>AI 정보동향지 <b>편집기</b></h1>
   <span id="issueChip" class="chip"></span>
   <span class="sp"></span>
-  <button onclick="preview()">미리보기</button>
-  <button onclick="save()">초안 저장</button>
-  <button onclick="tgPreview()">텔레그램</button>
-  <button class="publish" onclick="publish()">발행</button>
+  <ol class="steps" id="steps">
+    <li data-s="make"><b>1</b>만들기</li>
+    <li data-s="edit"><b>2</b>손질</li>
+    <li data-s="preview"><b>3</b>미리보기</li>
+    <li data-s="publish"><b>4</b>발행</li>
+    <li data-s="send"><b>5</b>전송</li>
+  </ol>
+  <button id="btnSave" onclick="save()">저장</button>
+  <button id="btnPreview" onclick="preview()">미리보기</button>
+  <button id="btnPublish" class="publish" onclick="publish()">발행</button>
+  <button id="btnTg" onclick="tgPreview()">텔레그램</button>
 </header>
 
 <main>
@@ -338,6 +357,7 @@ function syncChip(){
 
 function render(){
   $('countLabel').textContent = issue ? `${issue.items.length}건` : '';
+  step();
   $('items').innerHTML = issue.items.map((it,i)=>`
     <div class="item ${it.locked?'locked':''}">
       ${(it.similar_to&&it.similar_to.length)?`<div class="dup">⚠ 같은 사건일 수 있습니다 — ${it.similar_to.map(esc).join(' / ')}. 확인 후 한쪽을 제외하세요.</div>`:''}
@@ -377,12 +397,13 @@ function render(){
     '<div class="empty">항목이 없습니다.<br>좌측에서 <b>이번 주 동향지 만들기</b>를 누르세요.</div>';
 }
 
-function upd(i,k,v){ issue.items[i][k]=v; issue.items[i].locked=true; render(); }
-function updBody(i,v){ issue.items[i].body=v.split('\n').filter(x=>x.trim()); issue.items[i].locked=true; render(); }
-function updNote(i,v){ const it=issue.items[i]; it.notes[it.note_kind]=v; it.note=v; it.locked=true; render(); }
+function touched(){ if(published) dirty = true; step(); }
+function upd(i,k,v){ issue.items[i][k]=v; issue.items[i].locked=true; touched(); render(); }
+function updBody(i,v){ issue.items[i].body=v.split('\n').filter(x=>x.trim()); issue.items[i].locked=true; touched(); render(); }
+function updNote(i,v){ const it=issue.items[i]; it.notes[it.note_kind]=v; it.note=v; it.locked=true; touched(); render(); }
 function setKind(i,k){ const it=issue.items[i]; it.note_kind=k; it.note=it.notes[k]||''; render(); }
 function toggleLock(i){ issue.items[i].locked=!issue.items[i].locked; render(); }
-function remove(i){ issue.items.splice(i,1); render(); }
+function remove(i){ issue.items.splice(i,1); touched(); render(); }
 function move(i,d){ const t=issue.items[i]; issue.items[i]=issue.items[i+d]; issue.items[i+d]=t; render(); }
 
 async function post(url, body){
@@ -393,6 +414,27 @@ async function post(url, body){
 }
 
 let pollTimer = null;
+let published = false;      // 이번 회차를 발행했는가
+let dirty = false;          // 발행 뒤 또 고쳤는가
+
+function step(){
+  const has = issue && issue.items.length > 0;
+  const s = !has ? 'make' : (published && !dirty ? 'send' : (previewed ? 'publish' : 'edit'));
+  const order = ['make','edit','preview','publish','send'];
+  const at = order.indexOf(s);
+  document.querySelectorAll('#steps li').forEach(li=>{
+    const i = order.indexOf(li.dataset.s);
+    li.classList.toggle('now', i === at);
+    li.classList.toggle('done', i < at);
+  });
+  // 텔레그램은 발행한 뒤에만. 발행 전에 보내면 전문 링크가 가리킬 파일이 없다.
+  $('btnTg').disabled = !(published && !dirty);
+  $('btnTg').title = $('btnTg').disabled ? '발행한 뒤에 보낼 수 있습니다' : '';
+  $('btnPreview').disabled = !has;
+  $('btnPublish').disabled = !has;
+  $('btnSave').disabled = !has;
+}
+let previewed = false;
 
 function mmss(sec){ const m=Math.floor(sec/60), s=Math.floor(sec%60);
   return m+':'+String(s).padStart(2,'0'); }
@@ -434,6 +476,7 @@ async function poll(){
     $('makeBtn').disabled = false;
     $('makeBtn').textContent = '이번 주 동향지 만들기';
     issue = await (await fetch('/api/draft')).json();
+    published = false; dirty = false; previewed = false;
     fillForm(); render();
     log(`초안 생성 완료 · <b>${issue.items.length}건</b> · ${mmss(p.elapsed||0)} 소요`);
     setTimeout(()=>{ $('prog').hidden = true; }, 6000);
@@ -464,10 +507,23 @@ async function save(){ try{ syncChip(); const d=await post('/api/save',issue); l
 async function preview(){ try{ syncChip(); await post('/api/preview',issue); window.open('/preview','_blank'); log('미리보기를 새 탭에 열었습니다.');}catch(e){log('실패: '+e.message);} }
 async function publish(){
   syncChip();
-  if(!confirm(`제${defaults.year}-${issue.number}호를 발행합니다. 확정본 HTML이 만들어집니다.`)) return;
-  try{ const d=await post('/api/publish',issue); log('발행 → '+d.path); }
-  catch(e){ if(confirm(e.message+'\n\n그래도 발행할까요?')){
-      const d=await post('/api/publish?force=1',issue); log('발행 → '+d.path);} }
+  if(!confirm(`제${defaults.year}-${issue.number}호를 발행합니다.\n확정본 HTML이 만들어집니다. (전송은 별도입니다)`)) return;
+  const b = $('btnPublish'); const old = b.textContent;
+  b.disabled = true; b.textContent = '발행 중…';
+  try{
+    let d;
+    try{ d = await post('/api/publish', issue); }
+    catch(e){
+      if(!confirm(e.message + '\n\n그래도 발행할까요?')) throw e;
+      d = await post('/api/publish?force=1', issue);
+    }
+    published = true; dirty = false; step();
+    log('발행 완료 → ' + d.path);
+    if(confirm('발행했습니다.\n\n이어서 텔레그램으로 보낼 내용을 확인할까요?\n(문구를 보고 고친 뒤 보낼 수 있습니다)')){
+      tgPreview();
+    }
+  }catch(e){ log('실패: ' + e.message); }
+  finally{ b.textContent = old; b.disabled = false; }
 }
 async function tgPreview(){
   syncChip();
