@@ -182,10 +182,45 @@ def cmd_weekly(args) -> int:
 
 
 def cmd_telegram(args) -> int:
-    """텔레그램 연결 확인 / 미리보기 / 발송."""
+    """텔레그램 방 찾기 / 연결 확인 / 미리보기 / 발송."""
     from trendletter import telegram as tg
 
     cfg = load()
+
+    if args.find:
+        try:
+            info = tg.discover(args.token, cfg)
+        except Exception as exc:  # noqa: BLE001
+            _say(str(exc))
+            return 1
+
+        _say("봇 @%s\n" % info["bot"])
+        if info.get("webhook"):
+            _say("이 봇에는 웹훅이 걸려 있어 이 방법으로는 방을 찾을 수 없습니다.")
+            _say("  현재 웹훅: %s" % info.get("webhook_url", "")[:70])
+            _say("  (기존 시스템이 쓰고 있을 수 있으니 웹훅을 끄지 마세요)\n")
+            _say("대신 이렇게 하세요.")
+            _say("  · 공개 채널이면 chat_id 에 @채널사용자명 을 그대로 적으면 됩니다")
+            _say("  · 비공개면 채널 메시지를 @userinfobot 에게 전달하면 알려 줍니다")
+            return 0
+
+        if not info["chats"]:
+            _say("찾은 방이 없습니다.")
+            _say("  채널·그룹에 아무 메시지나 하나 올린 뒤 다시 실행하세요.")
+            _say("  (봇은 자기가 들어온 뒤의 메시지만 볼 수 있습니다)")
+            return 1
+
+        _say("찾은 방 %d개 — 아래 값을 config/secrets.yaml 에 넣으세요.\n" % len(info["chats"]))
+        for c in info["chats"]:
+            kind = {"private": "1:1 대화", "group": "그룹",
+                    "supergroup": "그룹", "channel": "채널"}.get(c["type"], c["type"])
+            name = c["title"] or "(이름 없음)"
+            _say("  %-10s %-24s chat_id: %s" % (kind, name[:24], c["id"]))
+            if c.get("username"):
+                _say("  %-10s %-24s 또는     : @%s" % ("", "", c["username"]))
+        _say("\n  직원 배포용 → chat_id,  본인 1:1 대화 → admin_chat_id")
+        return 0
+
     if args.check:
         try:
             info = tg.check(cfg)
@@ -288,6 +323,8 @@ def main(argv=None) -> int:
 
     g = sub.add_parser("telegram", help="텔레그램 확인·미리보기·발송")
     g.add_argument("--check", action="store_true", help="봇·대상 방 연결 확인")
+    g.add_argument("--find", action="store_true", help="봇이 볼 수 있는 방과 chat_id 찾기")
+    g.add_argument("--token", help="설정에 없을 때 토큰을 직접 주기")
     g.add_argument("--send", action="store_true", help="실제로 보냄 (없으면 미리보기)")
     g.add_argument("--draft")
     g.add_argument("--url", help="HTML 전문 주소 (없으면 설정값 사용)")

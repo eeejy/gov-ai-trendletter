@@ -179,6 +179,51 @@ def send(
     return out
 
 
+def discover(token: str = "", cfg: Optional[Config] = None) -> Dict[str, Any]:
+    """봇이 접근할 수 있는 방을 찾아 chat_id 를 알려준다.
+
+    getUpdates 는 웹훅이 걸린 봇에서는 쓸 수 없다. 기존 시스템이 웹훅을 쓰고
+    있을 수 있으므로, 그 경우에는 끄라고 하지 않고 다른 방법을 안내한다.
+    """
+    cfg = cfg or load()
+    token = token or cfg.secret("telegram.token") or ""
+    if not token:
+        raise TelegramError("토큰이 없습니다. config/secrets.yaml 에 넣거나 --token 으로 주세요.")
+
+    me = _call(token, "getMe")
+    out: Dict[str, Any] = {"bot": me.get("username"), "chats": [], "webhook": False}
+
+    hook = _call(token, "getWebhookInfo")
+    if hook.get("url"):
+        out["webhook"] = True
+        out["webhook_url"] = hook["url"]
+        return out
+
+    r = requests.post(API % (token, "getUpdates"), data={"limit": 100}, timeout=30)
+    data = r.json()
+    if not data.get("ok"):
+        raise TelegramError("getUpdates 실패: %s" % data.get("description"))
+
+    seen = {}
+    for upd in data.get("result", []):
+        for key in ("message", "channel_post", "edited_channel_post", "my_chat_member"):
+            node = upd.get(key)
+            if not node:
+                continue
+            chat = node.get("chat") or {}
+            cid = chat.get("id")
+            if cid is None or cid in seen:
+                continue
+            seen[cid] = {
+                "id": cid,
+                "type": chat.get("type"),
+                "title": chat.get("title") or chat.get("username") or chat.get("first_name") or "",
+                "username": chat.get("username"),
+            }
+    out["chats"] = list(seen.values())
+    return out
+
+
 def check(cfg: Optional[Config] = None) -> Dict[str, Any]:
     """토큰과 대상 방이 살아 있는지 확인한다."""
     cfg = cfg or load()

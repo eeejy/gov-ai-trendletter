@@ -155,6 +155,8 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
         border-radius:8px;padding:11px 14px;margin-bottom:12px;font-size:12.5px;
         color:var(--ink-2);line-height:1.6}
 .notice b{color:var(--blue)}
+/* hidden 속성보다 display:flex 가 세서 창이 안 닫혔다. 명시적으로 눌러 준다. */
+.modal[hidden]{display:none}
 .modal{position:fixed;inset:0;background:rgba(8,20,40,.55);z-index:60;
        display:flex;align-items:center;justify-content:center;padding:20px}
 .modal-box{background:#fff;border-radius:14px;padding:22px 24px;width:min(560px,100%);
@@ -480,7 +482,15 @@ async function tgPreview(){
   }catch(e){ log('실패: '+e.message); }
 }
 function tgClose(){ $('tgModal').hidden = true; }
+// 바깥을 누르거나 ESC 로도 닫는다
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && !$('tgModal').hidden) tgClose();
+});
+document.addEventListener('click', function(e){
+  if(e.target && e.target.id === 'tgModal') tgClose();
+});
 async function tgSend(){
+  if(!$('tgText').value.trim()){ log('보낼 내용이 비어 있습니다.'); return; }
   if(!confirm('이 내용을 텔레그램으로 보냅니다.')) return;
   try{
     const r = await post('/api/telegram/send', {issue, text:$('tgText').value});
