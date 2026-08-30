@@ -235,6 +235,8 @@ main{background:var(--paper);padding:52px 0 10px}
 .vid .tx strong{font-size:13px;font-weight:700;line-height:1.45;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .vid .tx span{display:block;font-family:var(--mono);font-size:10.5px;color:var(--fog);margin-top:5px}
+.vid .tx .old{background:#FFF7E8;border:1px solid #FBE3B4;color:#9A6B00;
+              border-radius:100px;padding:1px 7px;font-weight:700;font-style:normal}
 
 footer{background:var(--navy);color:#8FA5C0;padding:34px 0 46px;font-size:12.5px;margin-top:34px}
 footer b{color:#fff}
@@ -447,7 +449,7 @@ footer .mono{font-family:var(--mono);font-size:11.5px;color:#63799A}
           <span class="th">{% if v.thumb %}<img src="{{ v.thumb }}" alt="" loading="lazy">{% endif %}</span>
           <span class="tx">
             <strong>{{ v.title }}</strong>
-            <span>{{ v.channel }}{% if v.published %} · {{ v.published }}{% endif %}{% if v.length %} · {{ v.length }}{% endif %}</span>
+            <span>{{ v.channel }}{% if v.published %} · {{ v.published }}{% endif %}{% if v.length %} · {{ v.length }}{% endif %}{% if v.stale %} <b class="old">지난 회차</b>{% endif %}</span>
           </span>
         </a>
         {% endfor %}

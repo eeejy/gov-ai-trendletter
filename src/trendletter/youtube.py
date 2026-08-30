@@ -58,10 +58,26 @@ def age_days(published: str) -> int:
     return int(m.group(1)) * _AGE_DAYS.get(m.group(2), 365)
 
 
+# 동향지 제목에는 늘 나오는 말이라 겹쳐도 관련성을 뜻하지 않는다.
+# 이 낱말만 겹친 영상은 십중팔구 다른 주제다.
+# (2026-08-30: 'AI·행정안전부' 만 겹친 무관한 정책 영상,
+#  'AI·모델·무료' 만 겹친 "24시간 돈 버는 에이전트" 영상이 붙어 있었다)
+_COMMON = {
+    "ai", "인공지능", "모델", "기술", "사용", "활용", "도입", "개발", "확산",
+    "공개", "발표", "추진", "정부", "공공", "지원", "강화", "구축", "운영",
+    "서비스", "사업", "정책", "데이터", "시스템", "플랫폼", "전환", "혁신",
+    "개최", "시작", "완료", "결과", "방안", "계획", "관련", "위한", "통해",
+    "새로운", "국내", "글로벌", "최초", "무료", "가이드", "리뷰", "총정리",
+}
+
+
 def _keywords(title: str) -> set:
-    """제목에서 대조에 쓸 낱말. 기호와 한 글자는 버린다."""
+    """제목에서 대조에 쓸 낱말. 기호·한 글자·상용어는 버린다."""
     cleaned = _STOP.sub(" ", title or "")
-    return {w for w in cleaned.split() if len(w) > 1}
+    return {
+        w for w in cleaned.split()
+        if len(w) > 1 and w.lower() not in _COMMON
+    }
 
 
 def _query_of(title: str) -> str:
@@ -75,8 +91,9 @@ def search(
     query: str,
     fetcher: Fetcher,
     limit: int = 2,
-    min_overlap: int = 2,
-    max_age_days: int = 60,
+    min_overlap: int = 3,
+    max_age_days: int = 45,
+    strong_overlap: int = 4,
 ) -> List[Dict[str, str]]:
     """제목으로 검색해 관련성이 확인된 영상만 돌려준다.
 
@@ -120,14 +137,21 @@ def search(
                 "thumb": "https://i.ytimg.com/vi/%s/mqdefault.jpg" % vid,
             }
         )
-    # 주간 동향지이므로 오래된 영상은 뺀다. 다만 최근 영상이 하나도 없으면
-    # 가장 관련도가 높은 것 하나는 남긴다(없는 것보다는 낫다).
-    fresh = [v for v in out if age_days(v["published"]) <= max_age_days]
-    picked = fresh or out[:1]
+    # 영상은 필수가 아니다. 관련도가 확실하지 않으면 그냥 붙이지 않는다.
+    # 억지로 채우면 주제가 다른 영상이 실려 오히려 신뢰를 깎는다.
+    #
+    # 다만 낱말이 아주 많이 겹치면(strong_overlap 이상) 같은 사업·같은 행사를
+    # 다룬 영상일 가능성이 높아 오래돼도 인정한다.
+    # (해양환경 지식나눔 특강은 겹침 4개인데 지난 회차라 나이로만 보면 탈락한다)
+    picked = [
+        v for v in out
+        if age_days(v["published"]) <= max_age_days
+        or v["_overlap"] >= strong_overlap
+    ]
     picked.sort(key=lambda v: (-v["_overlap"], age_days(v["published"])))
     for v in picked:
-        v.pop("_overlap", None)
         v["stale"] = age_days(v["published"]) > max_age_days
+        v.pop("_overlap", None)
     return picked[:limit]
 
 
@@ -139,14 +163,16 @@ def enrich(items, fetcher: Fetcher = None, progress=None) -> None:
     fetcher = fetcher or Fetcher()
     limit = int(cfg.get("youtube.max_per_item", 2))
     overlap = int(cfg.get("youtube.min_overlap", 2))
-    max_age = int(cfg.get("youtube.max_age_days", 60))
+    max_age = int(cfg.get("youtube.max_age_days", 45))
+    strong = int(cfg.get("youtube.strong_overlap", 4))
     say = progress or (lambda m: None)
 
     for item in items:
         if item.videos:
             continue
         found = search(
-            item.title, fetcher, limit=limit, min_overlap=overlap, max_age_days=max_age
+            item.title, fetcher, limit=limit, min_overlap=overlap,
+            max_age_days=max_age, strong_overlap=strong,
         )
         item.videos = found
         if found:

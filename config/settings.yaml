@@ -65,8 +65,11 @@ llm:
 youtube:
   enabled: true
   max_per_item: 2
-  min_overlap: 2     # 제목 낱말이 이만큼 겹쳐야 관련 영상으로 인정
-  max_age_days: 60   # 이보다 오래된 영상은 뺀다 (없으면 1건은 남기고 오래됨 표시)
+  # 영상은 필수가 아니다. 관련도가 확실하지 않으면 그 항목에는 아예 붙이지 않는다.
+  # 'AI·모델·사용' 같은 상용어는 겹쳐도 세지 않는다(youtube._COMMON).
+  min_overlap: 3     # 상용어를 뺀 낱말이 이만큼 겹쳐야 인정
+  max_age_days: 45   # 이보다 오래된 영상은 뺀다. 대체 영상을 억지로 넣지 않는다
+  strong_overlap: 4  # 이만큼 겹치면 같은 사업·행사를 다룬 것으로 보고 나이는 넘어간다
 
 dedupe:
   title_similarity: 0.72  # 이 값 이상이면 같은 이슈로 통합
