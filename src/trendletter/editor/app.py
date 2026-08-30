@@ -329,11 +329,17 @@ def api_telegram_preview():
     cfg = load()
     base = (cfg.get("telegram.html_base") or "").strip()
     url = (base.rstrip("/") + "/" + issue.slug + ".html") if base else ""
+    html_path = cfg.path("html_dir") / (issue.slug + ".html")
+    attach = html_path if (not url and html_path.exists()) else None
     try:
-        r = tg.send(issue, url, cfg, dry_run=True)
+        r = tg.send(issue, url, cfg, dry_run=True, html_file=attach)
     except Exception as exc:  # noqa: BLE001
         return jsonify({"ok": False, "error": str(exc)[:200]}), 400
-    return jsonify({"ok": True, "text": r["text"], "length": r["length"], "url": url})
+    return jsonify({
+        "ok": True, "text": r["text"], "length": r["length"], "url": url,
+        "attach": html_path.name if attach else "",
+        "need_publish": not url and not html_path.exists(),
+    })
 
 
 @app.post("/api/telegram/send")
@@ -346,9 +352,18 @@ def api_telegram_send():
     cfg = load()
     base = (cfg.get("telegram.html_base") or "").strip()
     url = (base.rstrip("/") + "/" + issue.slug + ".html") if base else ""
+    # 전문 주소가 없으면 발행본 HTML 을 첨부한다.
+    # 이걸 빠뜨리면 요약만 가고 전문을 볼 방법이 없다.
+    html_path = cfg.path("html_dir") / (issue.slug + ".html")
+    attach = html_path if (not url and html_path.exists()) else None
+    if not url and attach is None:
+        return jsonify({
+            "ok": False,
+            "error": "발행본이 없어 첨부할 파일이 없습니다. 먼저 [발행] 을 누르세요.",
+        }), 400
     try:
         # 사람이 화면에서 고친 문구가 있으면 그대로 보낸다
-        r = tg.send(issue, url, cfg, text=body.get("text"))
+        r = tg.send(issue, url, cfg, text=body.get("text"), html_file=attach)
     except Exception as exc:  # noqa: BLE001
         return jsonify({"ok": False, "error": str(exc)[:200]}), 400
     return jsonify(r)

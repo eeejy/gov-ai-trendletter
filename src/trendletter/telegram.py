@@ -164,11 +164,17 @@ def send(
 
         path = _P(html_file)
         if path.exists():
+            # 파일명에 한글·괄호가 있으면 기기에 따라 내려받기나 열기가 막힌다.
+            # 보낼 때만 영문 이름으로 바꾼다. (원본 파일명은 그대로 둔다)
+            safe = "AI-trend-%d-%02d.html" % (issue.year, issue.number)
             with path.open("rb") as fp:
                 r = requests.post(
                     API % (token, "sendDocument"),
-                    data={"chat_id": chat_id, "caption": "%s 전문" % issue.label},
-                    files={"document": (path.name, fp, "text/html")},
+                    data={
+                        "chat_id": chat_id,
+                        "caption": "%s 전문 — 받아서 열면 그대로 보입니다" % issue.label,
+                    },
+                    files={"document": (safe, fp, "text/html")},
                     timeout=120,
                 )
             data = r.json()

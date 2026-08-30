@@ -176,6 +176,11 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
 .modal-box h3{margin:0 0 6px;font-size:17px;font-weight:800}
 .modal-sub{margin:0 0 14px;font-size:12.5px;color:var(--gray)}
 .modal-box textarea{font-family:var(--sans);font-size:14px;line-height:1.75}
+.tg-loading{display:flex;align-items:center;gap:13px;padding:34px 20px;
+            background:var(--sky-xlt);border:1px solid var(--sky-lt);border-radius:8px}
+.tg-loading b{display:block;font-size:14px;color:var(--ink)}
+.tg-loading small{display:block;font-size:12px;color:var(--gray);margin-top:3px}
+.tg-loading[hidden]{display:none}
 .modal-meta{display:flex;gap:12px;margin-top:8px}
 .modal-btns{display:flex;gap:8px;margin-top:16px;align-items:center}
 
@@ -309,7 +314,16 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
   <div class="modal-box">
     <h3>텔레그램으로 보낼 내용</h3>
     <p class="modal-sub">현장 직원이 휴대폰에서 20초 안에 읽을 분량입니다. 고쳐서 보낼 수 있습니다.</p>
-    <textarea id="tgText" rows="16"></textarea>
+
+    <div id="tgLoading" class="tg-loading">
+      <span class="spin"></span>
+      <div>
+        <b>Claude가 요약 문구를 쓰는 중…</b>
+        <small>보통 20~40초 걸립니다 · <span id="tgTimer">0:00</span></small>
+      </div>
+    </div>
+
+    <textarea id="tgText" rows="16" hidden></textarea>
     <div class="modal-meta">
       <span id="tgLen" class="track"></span>
       <span id="tgUrl" class="track"></span>
@@ -317,7 +331,7 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
     <div class="modal-btns">
       <button onclick="tgClose()">닫기</button>
       <span style="flex:1"></span>
-      <button class="primary" onclick="tgSend()">보내기</button>
+      <button id="tgSendBtn" class="primary" onclick="tgSend()">보내기</button>
     </div>
   </div>
 </div>
@@ -525,19 +539,51 @@ async function publish(){
   }catch(e){ log('실패: ' + e.message); }
   finally{ b.textContent = old; b.disabled = false; }
 }
+let tgTick = null;
+
+function tgBusy(on){
+  $('tgLoading').hidden = !on;
+  $('tgText').hidden = on;
+  $('tgSendBtn').disabled = on;
+  if(tgTick){ clearInterval(tgTick); tgTick = null; }
+  if(on){
+    const t0 = Date.now();
+    $('tgTimer').textContent = '0:00';
+    tgTick = setInterval(()=>{
+      $('tgTimer').textContent = mmss((Date.now()-t0)/1000);
+    }, 1000);
+  }
+}
+
 async function tgPreview(){
   syncChip();
-  log('텔레그램 문구를 만드는 중… 20~40초');
+  // 만드는 데 20~40초 걸린다. 창을 먼저 띄워 눌린 것을 알 수 있게 한다.
+  $('tgLen').textContent = '';
+  $('tgUrl').textContent = '';
+  $('tgText').value = '';
+  $('tgModal').hidden = false;
+  tgBusy(true);
+  log('텔레그램 문구를 만드는 중…');
   try{
     const r = await post('/api/telegram/preview', issue);
     $('tgText').value = r.text;
     $('tgLen').textContent = r.length + '자';
-    $('tgUrl').textContent = r.url ? ('전문 주소 ' + r.url) : '전문 주소 미설정 (settings.yaml 의 telegram.html_base)';
-    $('tgModal').hidden = false;
+    $('tgUrl').textContent = r.url ? ('전문 주소 ' + r.url)
+      : (r.attach ? ('📎 ' + r.attach + ' 첨부됨')
+                  : '⚠️ 발행본이 없어 전문을 첨부할 수 없습니다 — 먼저 [발행]');
+    tgBusy(false);
     log('문구 준비 완료');
-  }catch(e){ log('실패: '+e.message); }
+  }catch(e){
+    tgBusy(false);
+    $('tgText').value = '';
+    $('tgLen').textContent = '만들지 못했습니다: ' + e.message;
+    log('실패: '+e.message);
+  }
 }
-function tgClose(){ $('tgModal').hidden = true; }
+function tgClose(){
+  $('tgModal').hidden = true;
+  if(tgTick){ clearInterval(tgTick); tgTick = null; }
+}
 // 바깥을 누르거나 ESC 로도 닫는다
 document.addEventListener('keydown', function(e){
   if(e.key === 'Escape' && !$('tgModal').hidden) tgClose();
@@ -547,11 +593,14 @@ document.addEventListener('click', function(e){
 });
 async function tgSend(){
   if(!$('tgText').value.trim()){ log('보낼 내용이 비어 있습니다.'); return; }
-  if(!confirm('이 내용을 텔레그램으로 보냅니다.')) return;
+  if(!confirm('이 내용을 텔레그램으로 보냅니다.\n보낸 뒤에는 되돌릴 수 없습니다.')) return;
+  const b = $('tgSendBtn'); const old = b.textContent;
+  b.disabled = true; b.textContent = '보내는 중…';
   try{
     const r = await post('/api/telegram/send', {issue, text:$('tgText').value});
     tgClose(); log('텔레그램 발송 완료 (message_id ' + r.message_id + ')');
   }catch(e){ log('발송 실패: '+e.message); }
+  finally{ b.textContent = old; b.disabled = false; }
 }
 
 async function loadCandidates(){
