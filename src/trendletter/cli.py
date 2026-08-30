@@ -34,8 +34,12 @@ def cmd_collect(args) -> int:
     articles = pipeline.collect(
         cfg, days=args.days, only=args.source, use_cache=not args.no_cache, progress=_say
     )
-    path = store.save_raw(articles)
+    # 일부만 골라 돌린 결과는 '마지막 수집본' 으로 잡히면 안 된다
+    path = store.save_raw(articles, partial=bool(args.source))
     _say("총 %d건 → %s" % (len(articles), path))
+    if args.source:
+        _say("일부 수집원만 돌렸으므로 partial- 로 저장했습니다."
+             " draft --reuse 는 이 파일을 쓰지 않습니다.")
     return 0
 
 
@@ -46,8 +50,20 @@ def cmd_draft(args) -> int:
         if not raw:
             _say("재사용할 수집 결과가 없습니다. 먼저 collect 를 실행하세요.")
             return 1
-        _say("수집 결과 재사용: %s" % raw.name)
         articles = store.load_raw(raw)
+        # --source 로 일부만 수집한 결과가 '마지막 수집본' 으로 남아 있을 수 있다.
+        # 그걸 모르고 재사용하면 특정 기관 소식이 통째로 빠진 채 초안이 나온다.
+        used = {a.source_id for a in articles}
+        enabled = {s["id"] for s in cfg.enabled_sources()}
+        _say("수집 결과 재사용: %s (%d건 · 수집원 %d/%d곳)"
+             % (raw.name, len(articles), len(used), len(enabled)))
+        missing = enabled - used
+        if missing:
+            names = {s["id"]: s["name"] for s in cfg.enabled_sources()}
+            _say("  ! 이 수집본에는 아래 수집원이 빠져 있습니다. 해당 기관 소식은"
+                 " 후보에 오르지 않습니다:")
+            _say("    %s" % ", ".join(sorted(names[m] for m in missing)))
+            _say("  ! 전체를 보려면 --reuse 없이 실행하세요.")
     else:
         _say("수집 시작 (최근 %d일)" % (args.days or cfg.get("collect.days", 7)))
         articles = pipeline.collect(

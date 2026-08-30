@@ -16,10 +16,19 @@ def _dump(path: Path, payload: Any) -> Path:
     return path
 
 
-def save_raw(articles: List[Article], stamp: Optional[str] = None) -> Path:
+def save_raw(articles: List[Article], stamp: Optional[str] = None,
+             partial: bool = False) -> Path:
+    """수집 결과를 남긴다.
+
+    --source 로 일부만 수집한 결과는 partial-* 로 따로 둔다. collect-* 만
+    '마지막 수집본' 으로 잡히므로, 시험 삼아 몇 곳만 돌려 본 것이 다음 초안의
+    자료로 둔갑하지 않는다.
+    """
     cfg = load()
     stamp = stamp or datetime.now().strftime("%Y%m%d-%H%M")
-    return _dump(cfg.path("raw_dir") / ("collect-%s.json" % stamp), [a.to_dict() for a in articles])
+    prefix = "partial" if partial else "collect"
+    return _dump(cfg.path("raw_dir") / ("%s-%s.json" % (prefix, stamp)),
+                 [a.to_dict() for a in articles])
 
 
 def load_raw(path: Path) -> List[Article]:
@@ -27,6 +36,7 @@ def load_raw(path: Path) -> List[Article]:
 
 
 def latest_raw() -> Optional[Path]:
+    """마지막 '전체' 수집본. 일부만 돌린 partial-* 은 일부러 건너뛴다."""
     cfg = load()
     files = sorted(cfg.path("raw_dir").glob("collect-*.json"))
     return files[-1] if files else None
