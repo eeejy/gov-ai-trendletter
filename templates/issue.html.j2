@@ -46,16 +46,18 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
   background:radial-gradient(circle,rgba(0,81,255,.30) 0%,rgba(56,225,255,.10) 34%,transparent 66%)}
 .cover .inner{position:relative;width:100%;text-align:center;padding:80px 22px}
 .kicker{font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.30em;
-        color:var(--cyan);text-transform:uppercase;opacity:0;animation:rise .9s .15s forwards}
+        color:var(--cyan);text-transform:uppercase}
+.js .kicker{opacity:0;animation:rise .9s .15s forwards}
 .cover h1{font-family:var(--display);
           font-size:clamp(36px,8vw,78px);line-height:1.1;font-weight:900;color:#fff;
-          letter-spacing:-.03em;margin:20px 0 6px;opacity:0;animation:rise .9s .3s forwards}
+          letter-spacing:-.03em;margin:20px 0 6px}
+.js .cover h1{opacity:0;animation:rise .9s .3s forwards}
 .cover h1 em{font-style:normal;color:#fff}
 .cover .lede{font-family:var(--display);font-weight:700;
-             font-size:clamp(15px,2.3vw,19px);color:#A9BDD6;max-width:34ch;margin:14px auto 0;
-             opacity:0;animation:rise .9s .45s forwards}
-.stats{display:flex;justify-content:center;gap:0;margin-top:44px;flex-wrap:wrap;
-       opacity:0;animation:rise .9s .6s forwards}
+             font-size:clamp(15px,2.3vw,19px);color:#A9BDD6;max-width:34ch;margin:14px auto 0}
+.js .cover .lede{opacity:0;animation:rise .9s .45s forwards}
+.stats{display:flex;justify-content:center;gap:0;margin-top:44px;flex-wrap:wrap}
+.js .stats{opacity:0;animation:rise .9s .6s forwards}
 .stats div{padding:0 22px;border-left:1px solid rgba(255,255,255,.14)}
 .stats div:first-child{border-left:none}
 .stats b{display:block;font-family:var(--display);font-size:clamp(20px,3.4vw,30px);
@@ -65,7 +67,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
   font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#5E7391;
   animation:bob 2.2s ease-in-out infinite}
 @keyframes rise{to{opacity:1;transform:none}}
-.kicker,.cover h1,.cover .lede,.stats{transform:translateY(18px)}
+.js .kicker,.js .cover h1,.js .cover .lede,.js .stats{transform:translateY(18px)}
 @keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,7px)}}
 
 /* ══════════════════ 성운 목차 ══════════════════ */
@@ -78,8 +80,9 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
 .gx-head h2{font-family:var(--display);font-size:clamp(21px,3.6vw,30px);font-weight:900;
             margin:10px 0 8px;letter-spacing:-.02em}
 .gx-head p{color:#93A9C4;font-size:13.5px;margin:0}
-.gx-stage{position:relative;height:440px;border:1px solid rgba(120,170,255,.16);
+.gx-stage{display:none;position:relative;height:440px;border:1px solid rgba(120,170,255,.16);
           border-radius:14px;overflow:hidden;background:rgba(3,10,22,.55)}
+.js .gx-stage{display:block}
 .gx-stage canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
 .gx-tip{position:absolute;pointer-events:none;background:rgba(4,12,26,.94);
   border:1px solid rgba(120,170,255,.34);border-radius:8px;padding:9px 12px;max-width:290px;
@@ -125,7 +128,8 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
 .kw li.tk-dev.on{background:rgba(56,240,168,.10);border-color:rgba(56,240,168,.5);color:#D9FFEF}
 /* 모바일에서는 성운 대신 이 목록으로 이동한다.
    375px 화면에 별 36개와 라벨을 함께 넣으면 겹치고 누르기도 어렵다. */
-.gx-list{display:none;list-style:none;margin:16px 0 0;padding:0}
+.gx-list{display:block;list-style:none;margin:16px 0 0;padding:0}
+.js .gx-list{display:none}
 .gx-list li{border-top:1px solid rgba(120,170,255,.16)}
 .gx-list li:first-child{border-top:none}
 .gx-list a{display:grid;grid-template-columns:auto 1fr;gap:3px 11px;
@@ -141,9 +145,12 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
 main{background:var(--paper);padding:52px 0 10px}
 .item{background:var(--card);border:1px solid var(--line);border-radius:14px;
       margin:0 0 26px;padding:26px 28px 24px;scroll-margin-top:20px;
-      box-shadow:0 1px 2px rgba(12,20,32,.04);
-      opacity:0;transform:translateY(26px);transition:opacity .6s,transform .6s}
-.item.seen{opacity:1;transform:none}
+      box-shadow:0 1px 2px rgba(12,20,32,.04)}
+/* 스크롤에 맞춰 떠오르는 연출은 JS 가 도는 환경에서만 건다.
+   기본을 opacity:0 으로 두면 스크립트가 막힌 곳에서 본문이 통째로 안 보인다.
+   (텔레그램으로 받은 파일을 열었을 때 실제로 그랬다) */
+.js .item{opacity:0;transform:translateY(26px);transition:opacity .6s,transform .6s}
+.js .item.seen{opacity:1;transform:none}
 .item::before{content:'';display:block;width:52px;height:3px;border-radius:2px;
               background:var(--blue);margin-bottom:16px}
 .item.tr-policy::before{background:linear-gradient(90deg,#0090B8,var(--tr-policy))}
@@ -220,15 +227,25 @@ footer p{margin:0 0 6px}
 footer .mono{font-family:var(--mono);font-size:11.5px;color:#63799A}
 
 @media print{
-  body{background:#fff}
+  /* 프린터가 배경 그래픽을 빼고 찍으면 흰 바탕에 흰 글씨가 된다.
+     인쇄에서는 색을 아예 밝은 쪽으로 뒤집어 둔다. */
+  :root{--void:#fff; --deep:#fff; --navy:#fff; --card:#fff; --paper:#fff}
+  body{background:#fff;color:#000}
+  .cover{background:#fff;color:#000;border-bottom:2px solid #000}
+  .cover h1,.cover .lede,.kicker,.stats,.stats *{color:#000 !important}
+  .item,.item *{color:#000 !important}
+  .item{border:1px solid #999}
   .cover{min-height:auto;padding:24px 0}
   .cover canvas,.cover .glow,.scrollcue{display:none}
   .galaxy{background:#fff;color:#000;padding:18px 0}
-  .galaxy::before,.gx-stage{display:none}
-  .gx-list{display:block}
+  .galaxy::before,.gx-stage,.js .gx-stage{display:none}
+  .gx-list,.js .gx-list{display:block}
   .gx-list ol{padding-left:20px}
   .gx-head h2,.gx-head p{color:#000}
-  .item{opacity:1;transform:none;break-inside:avoid;page-break-inside:avoid;box-shadow:none}
+  .item,.js .item{opacity:1;transform:none;break-inside:avoid;page-break-inside:avoid;box-shadow:none}
+  .kicker,.js .kicker,.cover h1,.cover .lede,.stats{opacity:1;transform:none;animation:none}
+  a[href^="http"]::after{content:" (" attr(href) ")";font-size:9px;color:#555;word-break:break-all}
+  @page{margin:14mm}
 }
 @media (prefers-reduced-motion:reduce){
   .item{opacity:1;transform:none;transition:none}
@@ -247,7 +264,7 @@ footer .mono{font-family:var(--mono);font-size:11.5px;color:#63799A}
   .gx-tip{display:none}
   .gx-legend{font-size:11px;gap:10px}
   .gx-legend .lbl,.gx-legend .note-s,.gx-legend .sep{display:none}
-  .gx-list{display:block}
+  .js .gx-list{display:block}
 
   /* 이번 주 요약 */
   .brief{padding:15px 16px}
@@ -279,6 +296,7 @@ footer .mono{font-family:var(--mono);font-size:11.5px;color:#63799A}
 </style>
 </head>
 <body>
+<script>document.documentElement.className += ' js';</script>
 
 <!-- ══════════ 표지 ══════════ -->
 <header class="cover">

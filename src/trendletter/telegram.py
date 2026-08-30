@@ -163,7 +163,9 @@ def send(
         from pathlib import Path as _P
 
         path = _P(html_file)
-        if path.exists():
+        if not path.exists():
+            out["file_error"] = "첨부할 파일이 없습니다 (확정본을 먼저 만드세요)"
+        else:
             # 파일명에 한글·괄호가 있으면 기기에 따라 내려받기나 열기가 막힌다.
             # 보낼 때만 영문 이름으로 바꾼다. (원본 파일명은 그대로 둔다)
             safe = "AI-trend-%d-%02d.html" % (issue.year, issue.number)

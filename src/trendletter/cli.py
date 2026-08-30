@@ -6,6 +6,7 @@
   publish   초안을 확정본 HTML 로 발행
   editor    로컬 웹 편집기 실행
   sources   수집원 상태 점검
+  doctor    설치·설정이 갖춰졌는지 한 번에 점검
 """
 
 from __future__ import annotations
@@ -170,6 +171,9 @@ def cmd_weekly(args) -> int:
             "",
         ]
         lines += ["%d. %s" % (it.no, it.title) for it in issue.items]
+        warn = pipeline.health_warnings(pipeline.LAST_HEALTH)
+        if warn:
+            lines += ["", "⚠️ 수집 상태 확인이 필요합니다"] + ["· " + w for w in warn]
         lines += ["", "편집기에서 확인 후 발행하세요.", "http://127.0.0.1:8765"]
         try:
             from trendletter import telegram as tg
@@ -286,6 +290,122 @@ def cmd_sources(args) -> int:
     return 0
 
 
+def _chk(ok: bool, label: str, detail: str = "", fix: str = "") -> bool:
+    mark = "OK  " if ok else "X   "
+    _say("  %s%-26s %s" % (mark, label, detail))
+    if not ok and fix:
+        _say("      → %s" % fix)
+    return ok
+
+
+def cmd_doctor(args) -> int:
+    """새 PC에서 바로 쓸 수 있는 상태인지 한 번에 점검한다."""
+    import shutil
+    import subprocess
+
+    root = Path(__file__).resolve().parents[2]
+    bad = 0
+
+    _say("\n[1] 실행 환경")
+    v = sys.version_info
+    bad += not _chk(v >= (3, 9), "파이썬 %d.%d" % (v.major, v.minor),
+                    "3.9 이상 필요", "python3 -m venv .venv 로 다시 만드세요")
+    for mod, why in (("flask", "편집기"), ("yaml", "설정 읽기"),
+                     ("requests", "수집"), ("bs4", "HTML 파싱"),
+                     ("jinja2", "동향지 렌더"), ("lxml", "HTML 파서")):
+        try:
+            __import__(mod)
+            _chk(True, mod, why)
+        except ImportError:
+            bad += 1
+            _chk(False, mod, "없음 (%s)" % why, "./.venv/bin/pip install -r requirements.txt")
+    try:
+        import fontTools  # noqa: F401
+        import brotli  # noqa: F401
+        _chk(True, "fonttools+brotli", "표지 글꼴 내장")
+    except ImportError:
+        _chk(False, "fonttools+brotli", "없음 — 기본 글꼴로 렌더됩니다", "선택 사항입니다")
+
+    _say("\n[2] 설정 파일")
+    for rel, need in (("config/settings.yaml", True), ("config/sources.yaml", True),
+                      ("config/ontology.yaml", True), ("config/korea_kr_depts.yaml", True),
+                      ("config/secrets.yaml", False)):
+        f = root / rel
+        if f.exists():
+            try:
+                import yaml
+                yaml.safe_load(f.read_text(encoding="utf-8"))
+                _chk(True, rel, "%.1fKB" % (f.stat().st_size / 1024))
+            except Exception as exc:  # noqa: BLE001
+                bad += 1
+                _chk(False, rel, "형식 오류: %s" % exc)
+        elif need:
+            bad += 1
+            _chk(False, rel, "없음")
+        else:
+            _chk(False, rel, "없음 — 텔레그램 안 씀",
+                 "config/secrets.example.yaml 를 복사해서 채우세요")
+
+    _say("\n[3] 쓰기 권한")
+    for rel in ("data/raw", "data/drafts", "data/issues", "data/cache"):
+        d = root / rel
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            probe = d / ".probe"
+            probe.write_text("x"); probe.unlink()
+            _chk(True, rel, "쓰기 가능")
+        except Exception as exc:  # noqa: BLE001
+            bad += 1
+            _chk(False, rel, str(exc))
+
+    _say("\n[4] Claude CLI (초안 작성)")
+    exe = shutil.which("claude")
+    if exe:
+        try:
+            out = subprocess.run([exe, "--version"], capture_output=True,
+                                 text=True, timeout=20)
+            _chk(True, "claude", out.stdout.strip() or exe)
+        except Exception as exc:  # noqa: BLE001
+            _chk(False, "claude", "응답 없음: %s" % exc)
+    else:
+        _chk(False, "claude", "없음 — 초안이 규칙 기반으로만 작성됩니다",
+             "npm i -g @anthropic-ai/claude-code")
+
+    _say("\n[5] 텔레그램")
+    cfg = load()
+    if not cfg.secret("telegram.token"):
+        _chk(False, "봇 토큰", "설정 안 됨", "config/secrets.yaml 에 token 을 넣으세요")
+    else:
+        from trendletter import telegram as tgmod
+        try:
+            res = tgmod.check(cfg)
+            _chk(bool(res.get("bot")), "봇", res.get("bot") or res.get("error", ""))
+            _chk(bool(res.get("chat")), "대상 방", res.get("chat") or "chat_id 확인 필요",
+                 "python run.py telegram --find")
+        except Exception as exc:  # noqa: BLE001
+            _chk(False, "연결", str(exc))
+
+    _say("\n[6] 수집원 연결 (대표 3곳)")
+    import urllib.request
+    for name, url in (("해양경찰청", "https://www.kcg.go.kr"),
+                      ("korea.kr", "https://www.korea.kr"),
+                      ("서울 AI 플랫폼", "https://seoulai.saif.or.kr")):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=8) as r:
+                _chk(r.status < 400, name, "HTTP %d" % r.status)
+        except Exception as exc:  # noqa: BLE001
+            _chk(False, name, "%s" % type(exc).__name__)
+            _say("      → 방화벽·프록시 환경이면 정상일 수 있습니다")
+
+    _say("")
+    if bad:
+        _say("필수 항목 %d개가 준비되지 않았습니다. 위의 → 안내를 따라 주세요.\n" % bad)
+        return 1
+    _say("필수 항목은 모두 준비됐습니다.  python run.py editor 로 시작하세요.\n")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="trendletter", description="AI 정보동향지 반자동화")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -332,6 +452,9 @@ def main(argv=None) -> int:
 
     e = sub.add_parser("editor", help="로컬 웹 편집기")
     e.set_defaults(func=cmd_editor)
+
+    dr = sub.add_parser("doctor", help="설치·설정 상태를 한 번에 점검")
+    dr.set_defaults(func=cmd_doctor)
 
     s = sub.add_parser("sources", help="수집원 상태 점검")
     s.add_argument("--days", type=int)

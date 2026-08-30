@@ -288,6 +288,36 @@ def api_save():
     return jsonify({"ok": True, "path": str(path)})
 
 
+@app.get("/api/health")
+def api_health():
+    """마지막 수집에서 손봐야 할 게 있으면 알려준다."""
+    return jsonify({
+        "warnings": pipeline.health_warnings(pipeline.LAST_HEALTH)
+                    if pipeline.LAST_HEALTH else [],
+        "sources": pipeline.LAST_HEALTH,
+    })
+
+
+@app.get("/api/backups")
+def api_backups():
+    """자동 저장 직전 사본 목록. 새 것부터."""
+    return jsonify({"items": store.backups(_current())})
+
+
+@app.post("/api/backups/restore")
+def api_restore():
+    """사본 하나로 되돌린다. 되돌리기 직전 상태도 함께 남긴다."""
+    name = (request.get_json(force=True) or {}).get("file", "")
+    cur = _current()
+    try:
+        restored = store.load_backup(cur, name)
+    except FileNotFoundError:
+        return jsonify({"ok": False, "error": "사본을 찾을 수 없습니다"}), 404
+    restored.status = "draft"
+    store.save_draft(restored)         # 지금 상태는 _backup 이 알아서 남긴다
+    return jsonify({"ok": True, "issue": restored.to_dict()})
+
+
 @app.post("/api/preview")
 def api_preview():
     issue = Issue.from_dict(request.get_json(force=True))

@@ -34,6 +34,7 @@ def collect(
 
     say = progress or (lambda m: None)
     articles: List[Article] = []
+    health: List[dict] = []      # 수집기별 결과. 사이트가 바뀌어 조용히 0건이 되는 걸 잡는다
     for source in cfg.enabled_sources(only):
         # 수집 기간은 모든 수집원에 똑같이 적용한다.
         # 일부만 늘리면 같은 화면에서 몇 주 전 소식과 이번 주 소식이 뒤섞인다.
@@ -42,12 +43,48 @@ def collect(
             got = build(source, fetcher).collect(since, limit)
         except Exception as exc:  # noqa: BLE001 - 한 소스 실패가 전체를 막지 않는다
             say("  ! %s 수집 실패: %s" % (source["name"], exc))
+            health.append({"name": source["name"], "n": -1, "error": str(exc)[:120]})
             continue
         for a in got:
             a.raw.setdefault("role", source.get("role", "primary"))
         articles.extend(got)
+        health.append({"name": source["name"], "n": len(got), "error": ""})
         say("  · %-22s %3d건" % (source["name"], len(got)))
+
+    LAST_HEALTH[:] = health
+    for line in health_warnings(health):
+        say("  ! " + line)
     return articles
+
+
+# 마지막 수집의 수집기별 결과. 편집기와 주간 알림이 함께 본다.
+LAST_HEALTH: List[dict] = []
+
+
+def health_warnings(health: List[dict]) -> List[str]:
+    """담당자가 손을 써야 하는 상황만 골라 말한다.
+
+    수집기는 사이트 구조가 바뀌면 예외 없이 0건을 돌려준다. 그대로 두면
+    몇 주 동안 특정 기관 소식이 통째로 빠진 채 발행된다.
+    """
+    if not health:
+        return ["수집원이 하나도 실행되지 않았습니다"]
+    dead = [h["name"] for h in health if h["n"] == 0]
+    broken = [h for h in health if h["n"] < 0]
+    total = sum(h["n"] for h in health if h["n"] > 0)
+    out = []
+    if broken:
+        out.append("오류로 멈춘 수집원 %d개: %s"
+                   % (len(broken), ", ".join(h["name"] for h in broken)))
+    if dead:
+        out.append("0건으로 끝난 수집원 %d개: %s  (사이트 구조가 바뀌었을 수 있습니다 — "
+                   "python run.py sources 로 확인하세요)" % (len(dead), ", ".join(dead)))
+    if len(dead) + len(broken) >= max(2, len(health) // 3):
+        out.append("수집원 %d개 중 %d개가 아무것도 가져오지 못했습니다. 발행 전에 점검하세요."
+                   % (len(health), len(dead) + len(broken)))
+    if total < 30:
+        out.append("전체 수집량이 %d건뿐입니다. 평소(150건 안팎)보다 크게 적습니다." % total)
+    return out
 
 
 def build_clusters(articles: List[Article], cfg: Optional[Config] = None) -> List[Cluster]:

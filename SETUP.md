@@ -18,7 +18,7 @@
 ```
 /newbot
 → 봇 이름을 물어봄       : AI 정보동향지
-→ 사용자명을 물어봄      : kcg_ai_trend_bot      ← _bot 으로 끝나야 함
+→ 사용자명을 물어봄      : 우리기관_ai_trend_bot  ← _bot 으로 끝나야 함
 ```
 
 `123456789:AAH...` 형태의 토큰을 줍니다. **이 값을 복사해 두세요.**
@@ -61,7 +61,16 @@ telegram:
 python run.py telegram --check
 ```
 
-`봇 @kcg_ai_trend_bot → 방이름 (channel)` 이 나오면 됩니다.
+`봇 @내봇이름 → 방이름 (channel)` 이 나오면 됩니다.
+
+여기까지 됐으면 아래 한 줄로 전체를 한 번에 확인할 수 있습니다.
+
+```bash
+python run.py doctor
+```
+
+파이썬·패키지·설정 파일·쓰기 권한·Claude·텔레그램·수집원 접속을 차례로 보고,
+빠진 게 있으면 무엇을 하면 되는지 함께 알려 줍니다.
 
 ---
 
@@ -132,6 +141,7 @@ python tools_schedule.py --day 5 --time 08:00
 ## 막히면
 
 ```bash
+python run.py doctor           # 뭐가 빠졌는지 한 번에 (여기부터)
 python run.py sources          # 수집원이 다 살아 있는지
 python run.py telegram --check # 봇 연결
 python tools_audit.py          # 무엇을 가져와 무엇이 실렸는지

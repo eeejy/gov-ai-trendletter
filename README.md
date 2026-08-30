@@ -51,13 +51,18 @@ AI 정책·기술 환경이 빠르게 바뀌는데, 기관이 그걸 따라가�
 
 ```bash
 python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
+python run.py doctor          # 준비가 다 됐는지 한 번에 점검
 python run.py editor          # 로컬 웹 편집기 (127.0.0.1:8765)
 ```
 
-편집기에서 **이번 주 동향지 만들기** → 항목 손질 → **미리보기** → **발행** → **텔레그램**.
+편집기에서 **이번 주 동향지 만들기** → 항목 손질 → **미리보기** → **확정본 만들기** → **텔레그램 전송**.
 전체 3~5분이며 진행 상황이 단계별로 표시된다.
 
+편집 내용은 고칠 때마다 자동 저장되고, 저장 직전 내용을 20개까지 남겨 둔다.
+잘못 지웠으면 상단 **되돌리기** 로 그 시점으로 돌아갈 수 있다.
+
 ```bash
+python run.py doctor          # 설치·설정·연결 상태 한 번에 점검
 python run.py sources         # 수집원 접속 점검
 python run.py draft --days 7  # 수집 + 초안 (CLI)
 python run.py telegram        # 텔레그램 문구 미리보기

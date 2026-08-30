@@ -40,6 +40,25 @@ header h1 b{color:var(--blue)}
 .chip{font-family:var(--mono);font-size:12px;color:var(--blue);background:var(--sky-lt);
       padding:5px 11px;border-radius:100px;font-weight:700}
 header .sp{flex:1}
+.histlist{list-style:none;margin:12px 0 0;padding:0;max-height:320px;overflow:auto;
+  border:1px solid var(--line);border-radius:8px}
+.histlist li{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:13px;
+  border-bottom:1px solid var(--line)}
+.histlist li:last-child{border-bottom:0}
+.histlist li:nth-child(odd){background:var(--soft)}
+.histlist .when{font-variant-numeric:tabular-nums;color:var(--ink)}
+.histlist .sz{color:var(--gray);font-size:11.5px;flex:1}
+.histlist .empty{color:var(--gray);justify-content:center;padding:22px}
+.healthbox{margin-top:14px;padding:12px 14px;border-radius:10px;font-size:13px;
+  background:#FFF6E5;border:1px solid #F0C46A;color:#6B4A05;line-height:1.6}
+.healthbox b{display:block;margin-bottom:5px}
+.healthbox ul{margin:0;padding-left:18px}
+.healthbox li{margin:2px 0}
+header .ghost{border-color:transparent;background:transparent;color:var(--gray);
+  font-weight:500;padding:6px 8px}
+header .ghost:hover{color:var(--blue);background:var(--soft)}
+.savestate{font-size:11.5px;color:var(--gray);white-space:nowrap;min-width:52px;text-align:right}
+.savestate.saving{color:var(--blue)}
 /* 단계 표시 — 지금 어디까지 왔는지 알려 준다. 막지는 않는다 */
 .steps{display:flex;list-style:none;margin:0;padding:0;gap:2px;align-items:center}
 .steps li{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--gray-lt);
@@ -199,13 +218,15 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
     <li data-s="make"><b>1</b>만들기</li>
     <li data-s="edit"><b>2</b>손질</li>
     <li data-s="preview"><b>3</b>미리보기</li>
-    <li data-s="publish"><b>4</b>발행</li>
+    <li data-s="publish"><b>4</b>확정본</li>
     <li data-s="send"><b>5</b>전송</li>
   </ol>
-  <button id="btnSave" onclick="save()">저장</button>
-  <button id="btnPreview" onclick="preview()">미리보기</button>
-  <button id="btnPublish" class="publish" onclick="publish()">발행</button>
-  <button id="btnTg" onclick="tgPreview()">텔레그램</button>
+  <span id="saveState" class="savestate">저장됨</span>
+  <button id="btnHist" class="ghost" onclick="showHist()" title="자동 저장된 이전 내용으로 되돌리기">되돌리기</button>
+  <button id="btnPreview" onclick="preview()" title="브라우저에서 결과물 확인">미리보기</button>
+  <button id="btnPublish" class="publish" onclick="publish()"
+          title="확정본 HTML 파일 만들기 (텔레그램 첨부에 쓰입니다)">확정본 만들기</button>
+  <button id="btnTg" onclick="tgPreview()" title="요약 + 확정본 파일 전송">텔레그램 전송</button>
 </header>
 
 <main>
@@ -216,17 +237,17 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
       <div class="two">
         <div>
           <label>호수</label>
-          <input id="number" type="number" min="1" oninput="syncChip()">
+          <input id="number" type="number" min="1" oninput="syncChip();autoSave()">
         </div>
         <div>
           <label>발행일</label>
-          <input id="published_on" type="date" oninput="syncChip()">
+          <input id="published_on" type="date" oninput="syncChip();autoSave()">
         </div>
       </div>
       <label>수집 기간</label>
       <div class="two">
-        <input id="period_from" type="date" oninput="syncChip()">
-        <input id="period_to" type="date" oninput="syncChip()">
+        <input id="period_from" type="date" oninput="syncChip();autoSave()">
+        <input id="period_to" type="date" oninput="syncChip();autoSave()">
       </div>
       <div class="quick">
         <button class="mini" onclick="setRange(7)">최근 7일</button>
@@ -234,7 +255,7 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
         <button class="mini" onclick="setRange(30)">30일</button>
       </div>
       <label>이번 호 주제</label>
-      <input id="theme" placeholder="비워 두면 표기하지 않음">
+      <input id="theme" placeholder="비워 두면 표기하지 않음" oninput="autoSave()">
     </div>
 
     <h2>수집 설정</h2>
@@ -270,6 +291,8 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
     </label>
 
     <button id="makeBtn" class="primary" style="width:100%;margin-top:16px" onclick="collect()">이번 주 동향지 만들기</button>
+
+    <div id="healthBox" class="healthbox" hidden></div>
 
     <div id="prog" class="prog" hidden>
       <div class="prog-head">
@@ -310,6 +333,17 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.75;resize:vertic
 </main>
 
 <!-- 텔레그램 미리보기 -->
+<div id="histModal" class="modal" hidden>
+  <div class="modal-box">
+    <h3>이전 내용으로 되돌리기</h3>
+    <p class="modal-sub">고칠 때마다 자동으로 저장되고, 저장 직전 내용을 최근 20개까지 남겨 둡니다.</p>
+    <ul id="histList" class="histlist"></ul>
+    <div class="modal-actions">
+      <button onclick="closeHist()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div id="tgModal" class="modal" hidden>
   <div class="modal-box">
     <h3>텔레그램으로 보낼 내용</h3>
@@ -411,14 +445,75 @@ function render(){
     '<div class="empty">항목이 없습니다.<br>좌측에서 <b>이번 주 동향지 만들기</b>를 누르세요.</div>';
 }
 
-function touched(){ if(published) dirty = true; step(); }
+let saveTimer = null;
+
+// 수집원이 조용히 0건을 돌려준 경우를 담당자에게 알린다.
+async function showHealth(){
+  try{
+    const h = await (await fetch('/api/health')).json();
+    const box = $('healthBox');
+    if(!h.warnings || !h.warnings.length){ box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = '<b>수집 상태 확인이 필요합니다</b><ul>' +
+      h.warnings.map(w => '<li>' + esc(w) + '</li>').join('') + '</ul>';
+  }catch(e){ /* 경고를 못 읽는 건 작업을 막을 일이 아니다 */ }
+}
+
+async function showHist(){
+  const m = $('histModal'); m.hidden = false;
+  const ul = $('histList');
+  ul.innerHTML = '<li class="empty">불러오는 중…</li>';
+  try{
+    const d = await (await fetch('/api/backups')).json();
+    if(!d.items.length){ ul.innerHTML = '<li class="empty">아직 저장된 이전 내용이 없습니다</li>'; return; }
+    ul.innerHTML = d.items.map(b =>
+      `<li><span class="when">${b.when}</span>` +
+      `<span class="sz">${(b.size/1024).toFixed(0)}KB</span>` +
+      `<button onclick="restore('${b.file}','${b.when}')">이걸로 되돌리기</button></li>`
+    ).join('');
+  }catch(e){ ul.innerHTML = '<li class="empty">목록을 읽지 못했습니다</li>'; }
+}
+function closeHist(){ $('histModal').hidden = true; }
+
+async function restore(file, when){
+  if(!confirm(`${when} 시점 내용으로 되돌립니다.\n지금 화면의 내용도 사본으로 남으니 다시 돌아올 수 있습니다.`)) return;
+  try{
+    const d = await post('/api/backups/restore', {file});
+    issue = d.issue; published = false; dirty = false;
+    fillForm(); render(); step();
+    setSaveState('되돌림');
+    closeHist();
+    log('되돌리기 완료 → ' + when);
+  }catch(e){ alert('되돌리지 못했습니다: ' + e.message); }
+}
+
+function setSaveState(s){
+  const el = $('saveState');
+  el.textContent = s;
+  el.classList.toggle('saving', s === '저장 중…');
+}
+
+// 고칠 때마다 잠깐 기다렸다 알아서 저장한다. 사용자가 누를 이유가 없다.
+function autoSave(){
+  setSaveState('저장 중…');
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    try{
+      syncChip();
+      await post('/api/save', issue);
+      setSaveState('저장됨');
+    }catch(e){ setSaveState('저장 실패'); }
+  }, 800);
+}
+
+function touched(){ if(published) dirty = true; step(); autoSave(); }
 function upd(i,k,v){ issue.items[i][k]=v; issue.items[i].locked=true; touched(); render(); }
 function updBody(i,v){ issue.items[i].body=v.split('\n').filter(x=>x.trim()); issue.items[i].locked=true; touched(); render(); }
 function updNote(i,v){ const it=issue.items[i]; it.notes[it.note_kind]=v; it.note=v; it.locked=true; touched(); render(); }
-function setKind(i,k){ const it=issue.items[i]; it.note_kind=k; it.note=it.notes[k]||''; render(); }
-function toggleLock(i){ issue.items[i].locked=!issue.items[i].locked; render(); }
+function setKind(i,k){ const it=issue.items[i]; it.note_kind=k; it.note=it.notes[k]||''; touched(); render(); }
+function toggleLock(i){ issue.items[i].locked=!issue.items[i].locked; touched(); render(); }
 function remove(i){ issue.items.splice(i,1); touched(); render(); }
-function move(i,d){ const t=issue.items[i]; issue.items[i]=issue.items[i+d]; issue.items[i+d]=t; render(); }
+function move(i,d){ const t=issue.items[i]; issue.items[i]=issue.items[i+d]; issue.items[i+d]=t; touched(); render(); }
 
 async function post(url, body){
   const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
@@ -443,10 +538,12 @@ function step(){
   });
   // 텔레그램은 발행한 뒤에만. 발행 전에 보내면 전문 링크가 가리킬 파일이 없다.
   $('btnTg').disabled = !(published && !dirty);
-  $('btnTg').title = $('btnTg').disabled ? '발행한 뒤에 보낼 수 있습니다' : '';
+  $('btnTg').title = $('btnTg').disabled
+    ? '확정본을 먼저 만들어야 첨부할 파일이 생깁니다'
+    : '요약 + 확정본 파일 전송';
   $('btnPreview').disabled = !has;
   $('btnPublish').disabled = !has;
-  $('btnSave').disabled = !has;
+
 }
 let previewed = false;
 
@@ -493,6 +590,7 @@ async function poll(){
     published = false; dirty = false; previewed = false;
     fillForm(); render();
     log(`초안 생성 완료 · <b>${issue.items.length}건</b> · ${mmss(p.elapsed||0)} 소요`);
+    showHealth();
     setTimeout(()=>{ $('prog').hidden = true; }, 6000);
   }
 }
@@ -517,13 +615,13 @@ async function collect(){
     showProg(false); log('실패: '+e.message);
   }
 }
-async function save(){ try{ syncChip(); const d=await post('/api/save',issue); log('초안 저장 → '+d.path);}catch(e){log('실패: '+e.message);} }
+async function save(){ try{ syncChip(); await post('/api/save',issue); setSaveState('저장됨'); }catch(e){ setSaveState('저장 실패'); } }
 async function preview(){ try{ syncChip(); await post('/api/preview',issue); window.open('/preview','_blank'); log('미리보기를 새 탭에 열었습니다.');}catch(e){log('실패: '+e.message);} }
 async function publish(){
   syncChip();
-  if(!confirm(`제${defaults.year}-${issue.number}호를 발행합니다.\n확정본 HTML이 만들어집니다. (전송은 별도입니다)`)) return;
+  if(!confirm(`제${defaults.year}-${issue.number}호 확정본을 만듭니다.\n\nHTML 파일이 data/issues 에 저장되고, 이 파일이 텔레그램에 첨부됩니다.\n(전송은 별도 버튼입니다)`)) return;
   const b = $('btnPublish'); const old = b.textContent;
-  b.disabled = true; b.textContent = '발행 중…';
+  b.disabled = true; b.textContent = '만드는 중…';
   try{
     let d;
     try{ d = await post('/api/publish', issue); }
@@ -532,8 +630,8 @@ async function publish(){
       d = await post('/api/publish?force=1', issue);
     }
     published = true; dirty = false; step();
-    log('발행 완료 → ' + d.path);
-    if(confirm('발행했습니다.\n\n이어서 텔레그램으로 보낼 내용을 확인할까요?\n(문구를 보고 고친 뒤 보낼 수 있습니다)')){
+    log('확정본 저장 → ' + d.path);
+    if(confirm('확정본을 만들었습니다.\n\n이어서 텔레그램으로 보낼 내용을 확인할까요?\n(문구를 보고 고친 뒤 보낼 수 있습니다)')){
       tgPreview();
     }
   }catch(e){ log('실패: ' + e.message); }
@@ -586,10 +684,13 @@ function tgClose(){
 }
 // 바깥을 누르거나 ESC 로도 닫는다
 document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape' && !$('tgModal').hidden) tgClose();
+  if(e.key !== 'Escape') return;
+  if(!$('tgModal').hidden) tgClose();
+  if(!$('histModal').hidden) closeHist();
 });
 document.addEventListener('click', function(e){
   if(e.target && e.target.id === 'tgModal') tgClose();
+  if(e.target && e.target.id === 'histModal') closeHist();
 });
 async function tgSend(){
   if(!$('tgText').value.trim()){ log('보낼 내용이 비어 있습니다.'); return; }
@@ -598,7 +699,17 @@ async function tgSend(){
   b.disabled = true; b.textContent = '보내는 중…';
   try{
     const r = await post('/api/telegram/send', {issue, text:$('tgText').value});
-    tgClose(); log('텔레그램 발송 완료 (message_id ' + r.message_id + ')');
+    tgClose();
+    if(r.file_error){
+      // 요약은 갔지만 전문 파일이 안 붙은 상태다. 조용히 넘기면 안 된다.
+      log('<b>요약은 보냈지만 전문 파일은 못 붙였습니다</b> — ' + esc(r.file_error));
+      alert('요약 메시지는 전송됐습니다.\n\n다만 전문 HTML 파일이 첨부되지 않았습니다:\n'
+            + r.file_error + '\n\n[확정본 만들기] 를 누른 뒤 다시 보내 주세요.');
+    } else if(r.file_message_id){
+      log('텔레그램 발송 완료 — 요약 + 전문 파일 (message_id ' + r.message_id + ')');
+    } else {
+      log('텔레그램 발송 완료 (message_id ' + r.message_id + ')');
+    }
   }catch(e){ log('발송 실패: '+e.message); }
   finally{ b.textContent = old; b.disabled = false; }
 }
@@ -621,8 +732,8 @@ async function rewrite(no){
     render(); log(`${String(no).padStart(2,'0')}번 다시 작성 완료`);
   }catch(e){ log('실패: '+e.message); }
 }
-async function addCand(i){ issue.items.push(await post('/api/candidates/'+i+'/add')); render(); }
-async function addBlank(){ issue.items.push(await post('/api/item/blank')); render(); }
+async function addCand(i){ issue.items.push(await post('/api/candidates/'+i+'/add')); touched(); render(); }
+async function addBlank(){ issue.items.push(await post('/api/item/blank')); touched(); render(); }
 
 function fillForm(){
   $('number').value = issue.number;

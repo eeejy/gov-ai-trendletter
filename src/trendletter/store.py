@@ -40,7 +40,60 @@ def save_draft(issue: Issue) -> Path:
     payload = issue.to_dict()
     for key in ("_clusters", "_all_clusters", "_topics"):   # 직렬화 불가한 임시 참조
         payload.get("meta", {}).pop(key, None)
-    return _dump(draft_path(issue), payload)
+    path = draft_path(issue)
+    _backup(path)
+    return _dump(path, payload)
+
+
+KEEP_BACKUPS = 20
+
+
+def _backup(path: Path) -> None:
+    """덮어쓰기 전에 직전 내용을 남긴다.
+
+    편집기가 자동 저장을 하기 때문에, 잘못 지운 문단을 되찾을 방법이 없으면
+    안 된다. 같은 내용이면 새 사본을 만들지 않는다.
+    """
+    if not path.exists():
+        return
+    hist = path.parent / "history"
+    hist.mkdir(exist_ok=True)
+    body = path.read_bytes()
+    stamp = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y%m%d-%H%M%S")
+    dest = hist / ("%s.%s.json" % (path.stem, stamp))
+    if dest.exists():
+        return
+    prev = sorted(hist.glob(path.stem + ".*.json"))
+    if prev and prev[-1].read_bytes() == body:     # 바뀐 게 없으면 그냥 둔다
+        return
+    dest.write_bytes(body)
+    for old_file in prev[: max(0, len(prev) + 1 - KEEP_BACKUPS)]:
+        old_file.unlink(missing_ok=True)
+
+
+def backups(issue: Issue) -> list:
+    """되돌릴 수 있는 사본 목록을 새 것부터 돌려준다."""
+    hist = draft_path(issue).parent / "history"
+    if not hist.exists():
+        return []
+    out = []
+    for f in sorted(hist.glob(draft_path(issue).stem + ".*.json"), reverse=True):
+        stamp = f.stem.rsplit(".", 1)[-1]
+        try:
+            when = datetime.strptime(stamp, "%Y%m%d-%H%M%S")
+        except ValueError:
+            continue
+        out.append({"file": f.name, "when": when.strftime("%m/%d %H:%M:%S"),
+                    "size": f.stat().st_size})
+    return out
+
+
+def load_backup(issue: Issue, name: str) -> Issue:
+    hist = draft_path(issue).parent / "history"
+    f = (hist / name).resolve()
+    if f.parent != hist.resolve() or not f.exists():   # 경로 탈출 방지
+        raise FileNotFoundError(name)
+    return Issue.from_dict(json.loads(f.read_text(encoding="utf-8")))
 
 
 def load_draft(path: Path) -> Issue:
