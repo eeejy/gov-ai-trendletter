@@ -23,7 +23,11 @@ def body_part(line: str) -> dict:
     """
     s = (line or "").strip()
     if s[:1] in ("*", "※"):
-        return {"level": 3, "marker": "*", "text": s[1:].strip()}
+        # 한 줄에 각주가 둘이면 두 번째는 ** 로 적는다. 사이에 빈칸이 끼기도 한다.
+        body = s[1:].lstrip()
+        if body[:1] == "*":
+            return {"level": 3, "marker": "**", "text": body[1:].strip()}
+        return {"level": 3, "marker": "*", "text": body.strip()}
     if s[:1] in ("-", "–", "—"):
         return {"level": 2, "marker": "-", "text": s[1:].strip()}
     if s[:1] in ("ㅇ", "○", "•"):

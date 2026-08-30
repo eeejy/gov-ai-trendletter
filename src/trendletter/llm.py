@@ -124,10 +124,30 @@ def _one_line(text: str) -> str:
     return " ".join(str(text or "").split())
 
 
-def draft_item(cluster_payload: Dict[str, Any]) -> Dict[str, Any]:
-    """이슈 하나를 받아 항목 초안(본문·시사점·향후계획)을 만든다."""
-    prompt = _load_prompt("draft_item.md").replace(
-        "{{CLUSTER_JSON}}", json.dumps(cluster_payload, ensure_ascii=False, indent=1)
+# 항목마다 따로 호출하므로 서로 무엇을 썼는지 알 수 없다. 그대로 두면 여섯 항목이
+# 모두 "우리청도 ~ 사전 ~ 필요" 한 가지 꼴로 나온다. 자리마다 먼저 따져 볼 각도를
+# 달리 준다. 자료가 맞지 않으면 무시하라고 함께 일러 둔다.
+_ANGLES = [
+    "이 소식이 우리 업무 어디에 닿는지 한 곳을 지목한다 (틀 ①)",
+    "판이 어느 쪽으로 움직이는지 먼저 짚는다. 우리청을 언급하지 않아도 된다 (틀 ②)",
+    "우리청이 이미 하고 있는 일이 자료에 있으면 그것과 나란히 놓는다 (틀 ③)",
+    "지켜야 할 선·위험이 걸렸는지 먼저 본다 (틀 ④)",
+    "판이 어느 쪽으로 움직이는지 먼저 짚는다. 우리청을 언급하지 않아도 된다 (틀 ②)",
+    "이 소식이 우리 업무 어디에 닿는지 한 곳을 지목한다 (틀 ①)",
+]
+
+
+def draft_item(cluster_payload: Dict[str, Any], slot: int = 0) -> Dict[str, Any]:
+    """이슈 하나를 받아 항목 초안(본문·시사점·향후계획)을 만든다.
+
+    slot 은 이번 호에서 이 항목이 놓일 자리다. 맺음말이 한 가지 꼴로 쏠리지 않도록
+    자리마다 먼저 검토할 각도를 달리 준다.
+    """
+    angle = _ANGLES[slot % len(_ANGLES)]
+    prompt = (
+        _load_prompt("draft_item.md")
+        .replace("{{VARIETY_HINT}}", angle)
+        .replace("{{CLUSTER_JSON}}", json.dumps(cluster_payload, ensure_ascii=False, indent=1))
     )
     data = _extract_json(run(prompt))
 

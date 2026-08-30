@@ -314,7 +314,7 @@ def polish(
                 ],
             }
         )
-        return i, llm.draft_item(payload)
+        return i, llm.draft_item(payload, slot=item.no - 1)
 
     say("  · Claude 로 %d개 항목 초안 작성 중…" % len(targets))
     with ThreadPoolExecutor(max_workers=3) as pool:
