@@ -1,0 +1,24 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# 실행 산출물 — 저장소에 올리지 않는다
+data/raw/
+data/drafts/
+data/cache/
+data/compare/
+data/issues/*
+!data/issues/demo/
+
+# 기관 발행 문서와 내부 설계 노트는 공개하지 않는다
+*.pdf
+AI나침반*.html
+AI_동향지_반자동화.md
+
+# 비밀값
+config/secrets.yaml
+.env
+
+# 글꼴 원본은 함께 둔다 (SIL OFL)
+!assets/fonts/

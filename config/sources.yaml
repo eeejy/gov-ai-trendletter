@@ -1,0 +1,231 @@
+# 수집원 정의
+#   track    : policy(정부·공공정책) / industry(AI 산업·도구) / dev(개발자·초기 신호)
+#   role     : primary(주력) / verify(보완·검증) / discover(추가 발견) / must(최우선 필수)
+#   collector: src/trendletter/collectors 의 등록 이름
+#   enabled  : 편집기에서 회차별로 덮어쓸 수 있는 기본값
+#
+# 2026-08-29 실제 접속으로 확인한 응답 구조를 기준으로 작성함.
+
+sources:
+
+  # ---------------------------------------------------------------- 정책
+  - id: national_ai_committee
+    name: 국가AI전략위·범정부 AI정책
+    track: policy
+    # 전략위 원문이 아니라 정책브리핑 검색 결과다.
+    # 전략위 자료 우대는 수집원이 아니라 내용으로 판정한다
+    # (config/ontology.yaml 의 priority_topics — 제목 언급 시 5.0점).
+    role: primary
+    collector: koreakr_search
+    enabled: true
+    params:
+      # 2026-08-30: 부처 지정 없이 검색하니 36건 중 9건만 관련 있었다(25%).
+      # 전략위 자료는 과기정통부·국무조정실 명의로 나가므로 그 두 곳으로 좁힌다.
+      depts: [과학기술정보통신부, 국무조정실, 기획예산처]
+      queries: ["국가AI전략위원회", "AI 대전환", "공공AX"]
+    # 검색 결과라 정확도가 낮다. 전략위 우대는 내용 기준 priority 5.0 으로 따로 준다
+    weight: 1.2
+
+  - id: kcg
+    name: 해양경찰청 보도자료
+    track: policy
+    role: must
+    collector: govboard
+    enabled: true
+    params:
+      # 2026-08-29 확인: mi=2799 & bbsId=313 이 보도자료 게시판
+      url: https://www.kcg.go.kr/kcg/na/ntt/selectNttList.do?mi=2799&bbsId=313
+      view_path: /kcg/na/ntt/selectNttInfo.do?nttSn=
+      # 2026-08-30: 2페이지는 pageIndex 가 아니라 currPage 로 넘긴다
+      pages: 3
+    # 우리 기관. AI 자료가 나오면 반드시 싣는다
+    weight: 1.6
+
+  # 우리청 — 자체 게시판이 놓치는 것을 정책브리핑에서 보완한다
+  - id: mof
+    name: 해양수산부
+    track: policy
+    role: must
+    collector: koreakr_search
+    enabled: true
+    params:
+      # 우리청과 업무가 맞닿아 있어 항상 확인한다
+      # "" (전체)를 넣으면 적조·오염수·동정 등 AI 무관 자료가 16건 중 15건이었다.
+      depts: [해양수산부]
+      queries: ["인공지능", "AI", "자율운항", "디지털"]
+    # 업무가 맞닿아 있어 항상 확인
+    weight: 1.4
+
+  - id: mois
+    name: 행정안전부(공공 AI 전환)
+    track: policy
+    role: primary
+    collector: koreakr_search
+    enabled: true
+    params:
+      # 지난 11개호에서 과기정통부(10건) 다음으로 많이 실린 출처(7건)
+      depts: [행정안전부, 인사혁신처, 국가데이터처, 개인정보보호위원회]
+      queries: ["인공지능", "AI", "데이터"]
+    # 과거 2위 출처(7건·12%)
+    weight: 1.5
+
+  - id: msit
+    name: 과학기술정보통신부
+    track: policy
+    role: primary
+    collector: koreakr_search
+    enabled: true
+    params:
+      depts: [과학기술정보통신부, 국무조정실, 방송미디어통신위원회]
+      queries: ["인공지능", "AI"]
+    # 과거 11개호 최다 출처(10건·18%)
+    weight: 1.6
+
+  # 유사기관 — 같은 현장 집행기관이라 사업 근거·구축 방식을 그대로 참고한다.
+  # 지난 11개호에서 소방청 3건, 경찰청·국방부·관세청·해양환경공단 각 1건을 실었다.
+  - id: peer_police_fire
+    name: 경찰청·소방청
+    track: policy
+    role: primary
+    collector: koreakr_search
+    enabled: true
+    params:
+      # 2026-08-30: 부처 지정 없이 검색했더니 12건 전부 무관한 부처 자료였다.
+      depts: [경찰청, 소방청]
+      queries: ["인공지능", "AI", "데이터"]
+    # 과거 4건. 같은 현장 집행기관
+    weight: 1.5
+
+  - id: peer_agency
+    name: 타 기관 AI 도입사례(국방·관세·산림 등)
+    track: policy
+    role: verify
+    collector: koreakr_search
+    enabled: true
+    params:
+      # 과거 11개호에 3건뿐인 소스라 기간을 늘리지 않는다.
+      # 늘렸더니 4주 전 자료가 이번 주 소식을 밀어냈다(2026-08-30).
+      depts: [국방부, 관세청, 산림청, 기상청, 국가유산청, 병무청, 조달청, 국세청]
+      queries: ["인공지능", "AI"]
+    # 공공 AI 도입 사례로만 참고한다. 업무 연결은 약하다
+    weight: 1.0
+
+  - id: seoul_ai
+    name: 서울 AI 플랫폼(AI 정책)
+    track: policy
+    role: primary
+    collector: seoul_ai
+    enabled: true
+    params:
+      # 2026-08-29 확인: 로그인·세션 불필요. POST /hmpg/bpst/bpstListPgng.do
+      # 17개 광역지자체 · 정부부처 · 연구기관 · 해외 정책을 이미 모아 둔 곳이다.
+      # groups 를 생략하면 전체가 조회된다. 좁히려면 아래 예시처럼 지정한다.
+      # 2026-08-30 확인: 60건 중 51건이 다른 수집원에 없는 고유 자료였다.
+      # 지자체 22건·해외 7건은 어떤 수집원도 다루지 않는 영역이다.
+      page_size: 150
+      searchtxt: ""            # 검색어로 좁히면 오히려 무관한 지자체 자료가 딸려온다
+      # 플랫폼이 항목마다 AI 요약을 만들어 두지만 수집 때는 받지 않는다.
+      # 60건 전부 받으면 90초가 걸리는데 AI 관문 판정은 하나도 바뀌지 않는다
+      # (관문은 제목 4.0점 기준이라 본문 최대 3.0점으로는 통과가 불가능하다).
+      # 대신 초안에 뽑힌 항목만 pipeline.fill_summaries() 가 뒤늦게 채운다.
+      fetch_summary: false
+      # groups:
+      #   central: ["정부부처·청·위원회", "한국지능정보사회진흥원(NIA)"]
+      #   overseas: ["OECD", "미국(캘리포니아주)", "일본(도쿄)", "싱가포르"]
+    # 고유 자료 공급이 크지만 상위 진입은 아직 없음
+    weight: 1.0
+
+  # ---------------------------------------------------------------- 산업
+  - id: aitimes
+    name: AI타임스
+    track: industry
+    role: primary
+    collector: rss
+    enabled: true
+    params:
+      # 2026-08-29 확인: 전체기사 50건, 섹션별 피드 존재(S1N1=정책)
+      feeds:
+        - https://www.aitimes.com/rss/allArticle.xml
+        - https://www.aitimes.com/rss/S1N1.xml
+    # 산업 주력. 과거 3건, 실측 통과율 47%
+    weight: 1.3
+
+  - id: zdnet
+    name: ZDNet Korea 인공지능
+    track: industry
+    role: verify
+    collector: zdnet
+    enabled: true
+    params:
+      url: "https://zdnet.co.kr/newskey/?lstcode=%EC%9D%B8%EA%B3%B5%EC%A7%80%EB%8A%A5"
+      fallback_feed: https://feeds.feedburner.com/zdkorea
+      pages: 2
+    # 실측 통과율 81%로 가장 높음
+    weight: 1.2
+
+  - id: itnewsmoa
+    name: IT뉴스모아
+    track: industry
+    role: discover
+    collector: itnewsmoa
+    enabled: true
+    params:
+      url: https://news.dlwlrmaon.com/
+    # 발견용. 통과는 잘 되나 상위 진입 없음
+    weight: 0.8
+
+  # ---------------------------------------------------------------- 개발자
+  - id: hackernews
+    name: Hacker News
+    track: dev
+    role: primary
+    collector: hackernews
+    enabled: true
+    params:
+      min_points: 100
+      # Algolia 는 OR 구문을 문자열로 취급한다. 짧은 질의를 여러 번 던진다.
+      queries: ["AI", "LLM", "agent", "open source model", "inference"]
+    # 실측 통과율 97%
+    weight: 1.0
+
+  - id: reddit
+    name: Reddit 개발자 서브레딧
+    track: dev
+    role: primary
+    collector: reddit
+    enabled: true
+    params:
+      # .json API 는 403 차단. Atom 피드(top/.rss?t=week)만 열린다.
+      subreddits: [LocalLLaMA, opencode, MachineLearning, singularity]
+    # 통과율 51%. 서브레딧 top 이라 무관 글이 섞인다
+    weight: 0.9
+
+  - id: github_trending
+    name: GitHub 활동 검증
+    track: dev
+    role: verify
+    collector: github
+    enabled: true
+    params:
+      created_days: 30          # 최근 30일 내 생성된 저장소를 급부상 후보로 본다
+      min_stars_gained: 200
+    # 검증용
+    weight: 0.8
+
+  - id: openrouter
+    name: OpenRouter 사용량 검증
+    track: dev
+    role: verify
+    collector: openrouter
+    enabled: false           # 공개 랭킹 엔드포인트 확인 후 활성화
+    params: {}
+    weight: 0.9
+
+  - id: threads
+    name: Threads 국내 개발자 반응
+    track: dev
+    role: discover
+    collector: manual
+    enabled: false           # 수동 보충 전용
+    params: {}
+    weight: 0.6

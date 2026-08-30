@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ issue.slug }} — {{ publisher }} AI 정보동향지</title>
+<style>
+{% for f in fonts.faces %}
+/* 이 회차에 쓰인 글자만 담았다 (SIL OFL — assets/fonts/README.md) */
+@font-face{
+  font-family:'{{ f.family }}';
+  src:url('{{ f.uri }}') format('woff2');
+  font-weight:{{ f.weight }};font-style:normal;font-display:swap;
+}
+{% endfor %}
+:root{
+  --void:#03060F; --deep:#071326;
+  --navy:#0A1A33; --card:#FFFFFF; --paper:#F2F5F9;
+  --blue:#0051FF; --sky:#4D8AFF; --cyan:#38E1FF; --cyan-dim:rgba(56,225,255,.16);
+  --sky-lt:#E8F0FF; --sky-xlt:#F5F8FF;
+  --ink:#0C1420; --ink-2:#33404F;
+  --fog:#7C8899; --line:#D5DCE6;
+  --hot:#FF4D6D; --warm:#FFB020;
+  /* 수집 트랙별 색 — 성운과 본문 배지에 함께 쓴다 */
+  --tr-policy:#38E1FF;    /* 정책 */
+  --tr-industry:#7C6CFF;  /* 산업 */
+  --tr-dev:#38F0A8;       /* 개발자 */
+  /* 표지·제목용과 본문용을 나눈다 (config/settings.yaml 의 output.*_font) */
+  --display:'TLDisplay','Paperlogy','Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --sans:'TLBody','Pretendard','Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',sans-serif;
+  --mono:var(--sans);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+     font-size:17px;line-height:1.6;letter-spacing:0;word-break:keep-all;
+     -webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:0 22px}
+
+/* ══════════════════ 표지 ══════════════════ */
+.cover{position:relative;min-height:88vh;background:var(--void);color:#fff;
+       display:flex;align-items:center;overflow:hidden}
+.cover canvas{position:absolute;inset:0;width:100%;height:100%}
+.cover .glow{position:absolute;left:50%;top:46%;width:120vmin;height:120vmin;
+  transform:translate(-50%,-50%);pointer-events:none;
+  background:radial-gradient(circle,rgba(0,81,255,.30) 0%,rgba(56,225,255,.10) 34%,transparent 66%)}
+.cover .inner{position:relative;width:100%;text-align:center;padding:80px 22px}
+.kicker{font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.30em;
+        color:var(--cyan);text-transform:uppercase;opacity:0;animation:rise .9s .15s forwards}
+.cover h1{font-family:var(--display);
+          font-size:clamp(36px,8vw,78px);line-height:1.1;font-weight:900;color:#fff;
+          letter-spacing:-.03em;margin:20px 0 6px;opacity:0;animation:rise .9s .3s forwards}
+.cover h1 em{font-style:normal;color:#fff}
+.cover .lede{font-family:var(--display);font-weight:700;
+             font-size:clamp(15px,2.3vw,19px);color:#A9BDD6;max-width:34ch;margin:14px auto 0;
+             opacity:0;animation:rise .9s .45s forwards}
+.stats{display:flex;justify-content:center;gap:0;margin-top:44px;flex-wrap:wrap;
+       opacity:0;animation:rise .9s .6s forwards}
+.stats div{padding:0 22px;border-left:1px solid rgba(255,255,255,.14)}
+.stats div:first-child{border-left:none}
+.stats b{display:block;font-family:var(--display);font-size:clamp(20px,3.4vw,30px);
+         font-weight:900;color:#fff;line-height:1.2}
+.stats span{font-size:11.5px;color:#7E93AD;letter-spacing:.08em}
+.scrollcue{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#5E7391;
+  animation:bob 2.2s ease-in-out infinite}
+@keyframes rise{to{opacity:1;transform:none}}
+.kicker,.cover h1,.cover .lede,.stats{transform:translateY(18px)}
+@keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,7px)}}
+
+/* ══════════════════ 성운 목차 ══════════════════ */
+.galaxy{position:relative;background:var(--deep);color:#fff;padding:64px 0 74px;overflow:hidden}
+.galaxy::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 50% at 50% 40%,rgba(0,81,255,.22),transparent 70%)}
+.galaxy .wrap{position:relative}
+.gx-head{text-align:center;margin-bottom:26px}
+.gx-head .kicker{animation:none;opacity:1}
+.gx-head h2{font-family:var(--display);font-size:clamp(21px,3.6vw,30px);font-weight:900;
+            margin:10px 0 8px;letter-spacing:-.02em}
+.gx-head p{color:#93A9C4;font-size:13.5px;margin:0}
+.gx-stage{position:relative;height:440px;border:1px solid rgba(120,170,255,.16);
+          border-radius:14px;overflow:hidden;background:rgba(3,10,22,.55)}
+.gx-stage canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.gx-tip{position:absolute;pointer-events:none;background:rgba(4,12,26,.94);
+  border:1px solid rgba(120,170,255,.34);border-radius:8px;padding:9px 12px;max-width:290px;
+  font-size:12.5px;line-height:1.55;color:#DCE8F7;opacity:0;transition:.12s;z-index:4}
+.gx-tip b{color:var(--cyan);display:block;font-family:var(--mono);font-size:10.5px;
+          letter-spacing:.14em;margin-bottom:3px}
+.gx-legend{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-top:16px;
+           font-size:12px;color:#8FA5C0}
+.gx-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;
+             vertical-align:1px}
+.gx-legend .on{background:#fff;box-shadow:0 0 10px #fff}
+.gx-legend .off{background:#3C536F}
+.gx-legend .sep{color:#3C536F}
+.gx-legend .lbl{color:#5E7391;font-family:var(--mono);font-size:11px;letter-spacing:.1em}
+.gx-legend .note-s{color:#5E7391;font-size:11.5px}
+.gx-legend .t-policy{background:var(--tr-policy);box-shadow:0 0 8px var(--tr-policy)}
+.gx-legend .t-industry{background:var(--tr-industry);box-shadow:0 0 8px var(--tr-industry)}
+.gx-legend .t-dev{background:var(--tr-dev);box-shadow:0 0 8px var(--tr-dev)}
+
+/* 이번 주 요약 */
+.brief{border:1px solid rgba(120,170,255,.16);border-radius:12px;padding:18px 20px;
+       margin:0 0 20px;background:rgba(3,10,22,.5)}
+.brief .line{margin:0;font-size:15.5px;color:#D6E4F5;line-height:1.7}
+.brief .line b{font-family:var(--display);font-weight:900;color:#fff}
+.brief .sub{margin-top:10px;display:flex;flex-wrap:wrap;gap:7px}
+.tk{font-size:12.5px;padding:4px 11px;border-radius:100px;font-weight:600;
+    border:1px solid rgba(120,170,255,.24);color:#B9CEE8}
+.tk-policy{border-color:rgba(56,225,255,.42);color:var(--tr-policy)}
+.tk-industry{border-color:rgba(124,108,255,.46);color:#A79BFF}
+.tk-dev{border-color:rgba(56,240,168,.42);color:var(--tr-dev)}
+.kw{margin-top:16px;border-top:1px solid rgba(120,170,255,.14);padding-top:14px}
+.kw h4{font-family:var(--display);font-size:11px;letter-spacing:.16em;color:#7089A8;
+       margin:0 0 10px;font-weight:700}
+/* 두 줄까지만 보여 준다. 넘치는 것은 감춘다. */
+.kw ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:7px;
+       max-height:74px;overflow:hidden}
+.kw li{font-size:13px;padding:5px 12px;border-radius:100px;color:#9FB6D2;
+       border:1px solid rgba(120,170,255,.18);background:rgba(10,22,44,.5)}
+.kw li i{font-style:normal;font-size:10.5px;margin-left:6px;opacity:.7}
+.kw li.ent{font-family:var(--display);font-weight:700}
+.kw li.on{background:rgba(56,225,255,.10);border-color:rgba(56,225,255,.5);color:#DCF6FF}
+.kw li.tk-industry.on{background:rgba(124,108,255,.12);border-color:rgba(124,108,255,.55);color:#E2DEFF}
+.kw li.tk-dev.on{background:rgba(56,240,168,.10);border-color:rgba(56,240,168,.5);color:#D9FFEF}
+/* 모바일에서는 성운 대신 이 목록으로 이동한다.
+   375px 화면에 별 36개와 라벨을 함께 넣으면 겹치고 누르기도 어렵다. */
+.gx-list{display:none;list-style:none;margin:16px 0 0;padding:0}
+.gx-list li{border-top:1px solid rgba(120,170,255,.16)}
+.gx-list li:first-child{border-top:none}
+.gx-list a{display:grid;grid-template-columns:auto 1fr;gap:3px 11px;
+           padding:13px 2px;text-decoration:none;align-items:baseline}
+.gx-list .n{grid-row:1/3;font-family:var(--display);font-weight:900;font-size:15px;
+            color:var(--tr-industry)}
+.gx-list .tr-policy .n{color:var(--tr-policy)}
+.gx-list .tr-dev .n{color:var(--tr-dev)}
+.gx-list .tt{color:#E4EEFA;font-size:14.5px;font-weight:700;line-height:1.45}
+.gx-list .mt{font-size:11.5px;color:#7E96B5}
+
+/* ══════════════════ 본문 ══════════════════ */
+main{background:var(--paper);padding:52px 0 10px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;
+      margin:0 0 26px;padding:26px 28px 24px;scroll-margin-top:20px;
+      box-shadow:0 1px 2px rgba(12,20,32,.04);
+      opacity:0;transform:translateY(26px);transition:opacity .6s,transform .6s}
+.item.seen{opacity:1;transform:none}
+.item::before{content:'';display:block;width:52px;height:3px;border-radius:2px;
+              background:var(--blue);margin-bottom:16px}
+.item.tr-policy::before{background:linear-gradient(90deg,#0090B8,var(--tr-policy))}
+.item.tr-industry::before{background:linear-gradient(90deg,#4B3ED6,var(--tr-industry))}
+.item.tr-dev::before{background:linear-gradient(90deg,#12A86C,var(--tr-dev))}
+.item.synthesis{border-color:#BCD3F5;box-shadow:0 2px 14px rgba(0,81,255,.07)}
+.item.synthesis::before{background:linear-gradient(90deg,var(--blue),var(--cyan));width:92px;height:4px}
+.badge.syn{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+.item.impact-높음::before{width:78px;height:4px}
+
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:13px;font-size:12px;font-family:var(--display)}
+.badge{padding:4px 10px;border-radius:100px;background:var(--sky-xlt);
+       border:1px solid var(--sky-lt);color:var(--blue);font-weight:700}
+.badge b{font-weight:700;color:var(--fog);margin-right:5px}
+.badge.tr{font-weight:700}
+.badge.tr.tr-policy{background:#E4FAFF;border-color:#A8E9F7;color:#046C87}
+.badge.tr.tr-industry{background:#EFEDFF;border-color:#CFC9FF;color:#4B3ED6}
+.badge.tr.tr-dev{background:#E4FBF1;border-color:#B0EFD3;color:#12805A}
+.badge.hi{background:#FFF0F3;border-color:#FFD2DC;color:var(--hot)}
+.badge.mid{background:#FFF7E8;border-color:#FBE3B4;color:#9A6B00}
+
+.item h3{font-family:var(--display);margin:0 0 7px;font-size:clamp(19px,2.7vw,24px);font-weight:700;
+         letter-spacing:-.01em;line-height:1.44}
+.item h3 .no{font-family:var(--display);font-weight:900;color:var(--blue);margin-right:10px;font-size:.82em}
+.src{font-size:13px;color:var(--fog);margin:0 0 16px;font-family:var(--sans);font-weight:700}
+
+.body{margin:0 0 16px}
+/* 줄머리 기호와 본문을 별도 칸으로 둔다.
+   기호를 본문 흐름에 두면 줄이 넘어갈 때 기호 자리로 되돌아와 줄맞춤이 깨진다. */
+.body p{display:flex;align-items:baseline;margin:0 0 9px;
+        font-size:16px;line-height:1.68}
+.body .mk{flex:0 0 auto;width:1.15em;text-align:left;color:var(--blue);
+          font-weight:700;-webkit-user-select:none;user-select:none}
+.body .tx{flex:1 1 auto;min-width:0}
+.body p.l2{padding-left:1.15em;color:var(--ink-2);font-size:15.5px}
+.body p.l2 .mk{width:1.05em;color:var(--sky)}
+.body p.l3{padding-left:2.3em;color:var(--fog);font-size:14px;line-height:1.62;margin-bottom:11px}
+.body p.l3 .mk{width:.95em;color:var(--fog)}
+
+.note{border-radius:10px;padding:15px 17px;border-left:3px solid var(--blue);background:var(--sky-xlt)}
+.note .k{font-family:var(--display);font-size:11px;font-weight:700;letter-spacing:.16em;
+         color:var(--blue);display:block;margin-bottom:5px}
+.note p{margin:0;font-size:15.5px;font-weight:700;line-height:1.62}
+.note.plan{background:#FFF7E8;border-left-color:var(--warm)}
+.note.plan .k{color:#9A6B00}
+
+/* 선정 사유 */
+.why{margin-top:18px;background:#F7F9FC;border:1px solid var(--line);border-radius:10px;
+     padding:13px 16px}
+.why h4{font-family:var(--display);font-size:11px;letter-spacing:.16em;color:var(--fog);
+        margin:0 0 8px;font-weight:700}
+.why ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.why li{font-size:13px;color:var(--ink-2);background:#fff;border:1px solid var(--line);
+        border-radius:100px;padding:4px 11px}
+.why li::before{content:'✓';color:var(--blue);font-weight:700;margin-right:6px}
+
+/* 관련 자료 */
+.rel{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}
+.rel h4{font-family:var(--display);font-size:11px;letter-spacing:.16em;color:var(--fog);
+        margin:0 0 10px;font-weight:700}
+.rel ul{list-style:none;margin:0;padding:0}
+.rel li{margin:0 0 7px}
+.rel ul a{color:var(--ink);text-decoration:none;font-size:14px;display:flex;gap:9px;align-items:baseline}
+.rel ul a:hover{color:var(--blue)}
+.rel ul a .o{font-family:var(--mono);font-size:11px;color:var(--blue);background:var(--sky-xlt);
+          border:1px solid var(--sky-lt);border-radius:100px;padding:2px 9px;white-space:nowrap;flex:none}
+.rel ul a .d{font-family:var(--mono);font-size:11px;color:var(--fog);flex:none;margin-left:auto}
+
+/* 기사 아래에 두 개를 나란히. 카드 하나가 본문 폭의 절반을 넘지 않는다. */
+.vids{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.rel a.vid,.vid{display:block;text-decoration:none;color:var(--ink);border:1px solid var(--line);
+     border-radius:12px;overflow:hidden;background:#fff;transition:.18s}
+.vid:hover{border-color:var(--sky);box-shadow:0 6px 20px rgba(0,81,255,.12);transform:translateY(-2px)}
+/* span 을 그대로 두면 인라인이라 썸네일이 작게 눌린다. 반드시 블록으로 만든다. */
+.vid .th{display:block;position:relative;width:100%;aspect-ratio:16/9;background:#0A1526}
+.vid .th img{width:100%;height:100%;object-fit:cover;display:block}
+.vid .th::after{content:'';position:absolute;left:50%;top:50%;width:38px;height:38px;
+  transform:translate(-50%,-50%);border-radius:50%;background:rgba(0,0,0,.55);
+  border:2px solid rgba(255,255,255,.9)}
+.vid .th::before{content:'';position:absolute;left:50%;top:50%;z-index:2;
+  transform:translate(-38%,-50%);border-style:solid;border-width:7px 0 7px 11px;
+  border-color:transparent transparent transparent #fff}
+.vid:hover .th::after{background:var(--blue);border-color:#fff}
+.vid .tx{display:block;padding:10px 12px 12px}
+.vid .tx strong{font-size:13px;font-weight:700;line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vid .tx span{display:block;font-family:var(--mono);font-size:10.5px;color:var(--fog);margin-top:5px}
+
+footer{background:var(--navy);color:#8FA5C0;padding:34px 0 46px;font-size:12.5px;margin-top:34px}
+footer b{color:#fff}
+footer p{margin:0 0 6px}
+footer .mono{font-family:var(--mono);font-size:11.5px;color:#63799A}
+
+@media print{
+  body{background:#fff}
+  .cover{min-height:auto;padding:24px 0}
+  .cover canvas,.cover .glow,.scrollcue{display:none}
+  .galaxy{background:#fff;color:#000;padding:18px 0}
+  .galaxy::before,.gx-stage{display:none}
+  .gx-list{display:block}
+  .gx-list ol{padding-left:20px}
+  .gx-head h2,.gx-head p{color:#000}
+  .item{opacity:1;transform:none;break-inside:avoid;page-break-inside:avoid;box-shadow:none}
+  .vids{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .item{opacity:1;transform:none;transition:none}
+  .kicker,.cover h1,.cover .lede,.stats{opacity:1;transform:none;animation:none}
+  .scrollcue{animation:none}
+}
+@media(max-width:640px){
+  /* 표지 */
+  .cover{min-height:78vh}
+  .cover .inner{padding:56px 18px}
+  .stats{margin-top:30px}
+  .stats div{padding:0 14px}
+
+  /* 성운은 장식으로만 두고, 이동은 아래 목록으로 한다 */
+  .gx-stage{height:200px}
+  .gx-tip{display:none}
+  .gx-legend{font-size:11px;gap:10px}
+  .gx-legend .lbl,.gx-legend .note-s,.gx-legend .sep{display:none}
+  .gx-list{display:block}
+
+  /* 이번 주 요약 */
+  .brief{padding:15px 16px}
+  .brief .line{font-size:14.5px}
+  .kw ul{max-height:none}          /* 모바일은 줄바꿈이 잦아 높이 제한을 풀어 준다 */
+  .kw li{font-size:12.5px;padding:4px 10px}
+
+  /* 본문 */
+  .wrap{padding:0 16px}
+  .item{padding:18px 16px;border-radius:12px}
+  .item h3{font-size:18px}
+  .body p{font-size:15.5px}
+  .body p.l2{padding-left:.9em}
+  .body p.l3{padding-left:1.8em;font-size:13.5px}
+  .note{padding:13px 14px}
+  .note p{font-size:14.5px}
+  .why ul{gap:5px}
+  .why li{font-size:12px;padding:3px 9px}
+
+  /* 관련 자료 */
+  .rel ul a{display:grid;grid-template-columns:1fr;gap:3px}
+  .rel ul a .o{justify-self:start}
+  .rel ul a .d{margin-left:0;justify-self:start}
+  .vids{grid-template-columns:1fr;gap:10px}
+  .vid .tx strong{font-size:14px}
+}
+@media(max-width:380px){
+  .gx-stage{height:170px}
+  .item{padding:16px 14px}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ 표지 ══════════ -->
+<header class="cover">
+  <canvas id="skyCanvas"></canvas>
+  <div class="glow"></div>
+  <div class="inner">
+    <div class="kicker">{{ publisher }} · {{ team }}</div>
+    <h1>{{ series }}<br><em>{{ issue.label }}</em></h1>
+    <p class="lede">{% if issue.theme %}{{ issue.theme }}{% else %}주간 AI 정책·산업·기술 동향{% endif %}</p>
+    <div class="stats">
+      <div><b>{{ issue.published_on.year }}. {{ issue.published_on.month }}. {{ issue.published_on.day }}.</b><span>발행</span></div>
+      <div><b>{{ issue.period_from.month }}.{{ issue.period_from.day }} – {{ issue.period_to.month }}.{{ issue.period_to.day }}</b><span>수집기간</span></div>
+    </div>
+  </div>
+  <div class="scrollcue">SCROLL ↓</div>
+</header>
+
+<!-- ══════════ 성운 목차 ══════════ -->
+<section class="galaxy" id="galaxy">
+  <div class="wrap">
+    <div class="gx-head">
+      <div class="kicker">CONTENTS</div>
+      <h2>이번 주 AI 동향 한눈에</h2>
+      <p>떠다니는 말은 이번 주 이슈에서 자주 나온 낱말입니다. 밝게 빛나는 {{ issue.items|length }}개가 이번 호에 실렸고, 눌러서 바로 이동할 수 있습니다.</p>
+    </div>
+
+    <div class="brief">
+      <p class="line">
+        이번 주 <b>{{ galaxy.summary.sources }}개 수집원</b>에서 <b>{{ galaxy.summary.articles }}건</b>을 모아
+        AI가 주제인 이슈 <b>{{ galaxy.summary.issues }}개</b>를 추렸고,
+        그중 <b>{{ galaxy.summary.picked }}개</b>를 이번 호에 실었습니다.
+      </p>
+      <p class="line sub">
+        {% for tr in galaxy.summary.tracks %}<span class="tk tk-{{ tr.key }}">{{ tr.name }} {{ tr.issues }}건 중 {{ tr.picked }}</span>{% endfor %}
+      </p>
+      {% if galaxy.keywords %}
+      <div class="kw">
+        <h4>이번 주 많이 나온 말</h4>
+        <ul>
+          {% for k in galaxy.keywords[:10] %}
+          <li class="tk-{{ k.track }}{% if k.picked %} on{% endif %}{% if k.entity %} ent{% endif %}">
+            {{ k.text }}<i>{{ k.count }}</i>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+    <div class="gx-stage">
+      <canvas id="gxCanvas"></canvas>
+      <div class="gx-tip" id="gxTip"></div>
+    </div>
+    <div class="gx-legend">
+      <span class="lbl">색은 수집 트랙</span>
+      {% for tr in galaxy.summary.tracks %}
+      <span><i class="t-{{ tr.key }}"></i>{{ tr.name }}</span>
+      {% endfor %}
+      <span class="sep">|</span>
+      <span><i class="on"></i>제목이 붙은 {{ issue.items|length }}개가 이번 호 게재</span>
+      <span class="note-s">주변의 말은 이번 주 자주 나온 낱말</span>
+    </div>
+
+    <!-- 모바일·인쇄·스크립트 미동작 시의 목차 -->
+    <ol class="gx-list">
+      {% for it in issue.items %}
+      <li class="tr-{{ it.track }}">
+        <a href="#item{{ it.no }}">
+          <span class="n">{{ '%02d'|format(it.no) }}</span>
+          <span class="tt">{{ it.title }}</span>
+          <span class="mt">{{ it.field_label }} · 영향 {{ it.impact }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>
+
+<!-- ══════════ 본문 ══════════ -->
+<main>
+  <div class="wrap">
+  {% for it in issue.items %}
+  <article class="item tr-{{ it.track }} impact-{{ it.impact }}{% if it.synthesis %} synthesis{% endif %}" id="item{{ it.no }}">
+    <div class="badges">
+      {% if it.synthesis %}<span class="badge syn">이번 주 핫이슈 · 종합</span>{% endif %}
+      <span class="badge tr tr-{{ it.track }}">{{ {'policy':'정책','industry':'산업','dev':'개발자'}[it.track] }} 트랙</span>
+      <span class="badge"><b>분야</b>{{ it.field_label }}</span>
+      <span class="badge"><b>참고</b>{{ it.audience }}</span>
+      <span class="badge {% if it.impact == '높음' %}hi{% elif it.impact == '중간' %}mid{% endif %}"><b>영향</b>{{ it.impact }}</span>
+      {% for axis, vals in it.onto.items() %}{% if axis == '업무 분야' %}
+      <span class="badge">{{ vals|join(' · ') }}</span>
+      {% endif %}{% endfor %}
+    </div>
+
+    <h3><span class="no">{{ '%02d'|format(it.no) }}</span>{{ it.title }}</h3>
+    <p class="src">&lt;{{ it.source_label }}&gt;</p>
+
+    <div class="body">
+      {% for line in it.body %}{% set part = line | body_part %}
+      <p class="l{{ part.level }}"><span class="mk">{{ part.marker }}</span><span class="tx">{{ part.text }}</span></p>
+      {% endfor %}
+    </div>
+
+    {% if it.note %}
+    <div class="note {% if it.note_kind != '시사점' %}plan{% endif %}">
+      <span class="k">{{ it.note_kind }}</span>
+      <p>{{ it.note }}</p>
+    </div>
+    {% endif %}
+
+    {% if it.why %}
+    <div class="why">
+      <h4>선정 사유</h4>
+      <ul>
+        {% for w in it.why %}<li>{{ w }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if it.links %}
+    <div class="rel">
+      <h4>관련 기사 {{ it.links|length }}건</h4>
+      <ul>
+        {% for l in it.links %}
+        <li><a href="{{ l.url }}" target="_blank" rel="noopener">
+          <span class="o">{{ l.label }}</span>
+          <span>{{ l.title or l.label }}</span>
+          {% if l.date %}<span class="d">{{ l.date }}</span>{% endif %}
+        </a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if it.videos %}
+    <div class="rel">
+      <h4>관련 영상</h4>
+      <div class="vids">
+        {% for v in it.videos %}
+        <a class="vid" href="{{ v.url }}" target="_blank" rel="noopener">
+          <span class="th"><img src="{{ v.thumb }}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>
+          <span class="tx">
+            <strong>{{ v.title }}</strong>
+            <span>{{ v.channel }}{% if v.published %} · {{ v.published }}{% endif %}{% if v.length %} · {{ v.length }}{% endif %}</span>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </article>
+  {% endfor %}
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>{{ publisher }} {{ team }}</b> · {{ series }} {{ issue.label }}</p>
+    <p class="mono">수집기간 {{ issue.period_from }} ~ {{ issue.period_to }} ·
+       수집원 {{ galaxy.sources }}곳 · 수집 {{ galaxy.collected }}건 →
+       이슈 {{ galaxy.clusters }}건 → 게재 {{ issue.items|length }}건</p>
+    <p class="mono">본 동향지는 공개 자료를 기반으로 작성되었으며, 최종 사실관계는 각 출처 원문을 확인하시기 바랍니다.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var GX = {{ galaxy | tojson_safe }};
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- 표지: 별과 성운 ---------- */
+  function cover(){
+    var cv = document.getElementById('skyCanvas'); if(!cv) return;
+    var cx = cv.getContext('2d'), W=0, H=0, dots=[];
+    function fit(){
+      var r = Math.min(devicePixelRatio||1, 2);
+      W = cv.clientWidth; H = cv.clientHeight;
+      cv.width = W*r; cv.height = H*r; cx.setTransform(r,0,0,r,0,0);
+      dots = [];
+      var n = Math.round(Math.min(W*H/7000, 190));
+      for(var i=0;i<n;i++) dots.push({
+        x:Math.random()*W, y:Math.random()*H, z:Math.random()*.85+.15,
+        r:Math.random()*1.5+.35, t:Math.random()*6.28
+      });
+    }
+    fit(); addEventListener('resize', fit);
+    var mx=0, my=0;
+    addEventListener('mousemove', function(e){ mx=(e.clientX/innerWidth-.5); my=(e.clientY/innerHeight-.5); });
+    (function loop(){
+      cx.clearRect(0,0,W,H);
+      for(var i=0;i<dots.length;i++){
+        var d=dots[i];
+        d.t += .012 + d.z*.01;
+        d.y -= d.z*.12; if(d.y < -4) { d.y = H+4; d.x = Math.random()*W; }
+        var px = d.x + mx*26*d.z, py = d.y + my*18*d.z;
+        var tw = .45 + Math.abs(Math.sin(d.t))*.55;
+        cx.beginPath(); cx.arc(px, py, d.r, 0, 6.2832);
+        cx.fillStyle = 'rgba(' + (d.z>.72?'150,215,255':'120,160,220') + ',' + (tw*d.z).toFixed(3) + ')';
+        cx.fill();
+      }
+      requestAnimationFrame(loop);
+    })();
+  }
+
+  /* ---------- 성운 목차 ---------- */
+  function galaxy(){
+    var cv = document.getElementById('gxCanvas'), tip = document.getElementById('gxTip');
+    if(!cv) return;
+    var cx = cv.getContext('2d'), W=0, H=0, nodes=[], words=[], hover=null, t=0;
+    var TRACK = {policy:[56,225,255], industry:[124,108,255], dev:[56,240,168]};
+    function rgba(tr,a){ var c=TRACK[tr]||TRACK.industry;
+      return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'; }
+
+    function build(){
+      var r = Math.min(devicePixelRatio||1, 2);
+      W = cv.clientWidth; H = cv.clientHeight;
+      cv.width = W*r; cv.height = H*r; cx.setTransform(r,0,0,r,0,0);
+      nodes = []; words = [];
+      var cxp = W/2, cyp = H/2, R = Math.min(W,H)*0.44;
+
+      // 이번 주 자주 나온 낱말을 은하 주변에 흩는다.
+      // 점만 찍으면 무엇이 수집됐는지 알 수 없어 낱말로 대신한다.
+      // 화면이 좁으면 낱말 수를 줄여 뭉치지 않게 한다
+      var kws = (GX.keywords||[]).slice(0, W > 560 ? 26 : 10);
+      var maxN = kws.reduce(function(m,k){return Math.max(m,k.count||1)},1);
+      kws.forEach(function(k,i){
+        var a = i*2.399 + 0.6;                       // 황금각으로 고르게
+        var rr = R*(0.62 + (i/Math.max(kws.length,1))*0.72);
+        var w = (k.count||1)/maxN;                    // 많이 나온 말일수록 크게
+        var size = 11 + Math.round(w*9);
+        cx.font = (k.picked?700:400)+' '+size+'px TLDisplay,Paperlogy,sans-serif';
+        var half = cx.measureText(k.text).width/2 + 8;
+        var x = cxp + Math.cos(a)*rr*1.32, y = cyp + Math.sin(a)*rr*0.92;
+        x = Math.max(half, Math.min(W-half, x));
+        y = Math.max(size, Math.min(H-size, y));
+        words.push({text:k.text, x:x, y:y, size:size, track:k.track,
+                    on:!!k.picked, base:0.26+w*0.34, t:Math.random()*6.28});
+      });
+
+      // 게재 항목 — 안쪽 궤도에서 밝게. 제목을 늘 함께 보여 준다
+      (GX.picked||[]).forEach(function(p,i){
+        var a = (i/Math.max(GX.picked.length,1))*6.2832 - 1.35;
+        var rr = R*(0.40 + (i%2)*0.13);
+        nodes.push({on:true, no:p.no, title:p.title, label:p.short,
+          track:p.track, why:(p.why||[])[0]||'',
+          sub:p.field+' · 영향 '+p.impact, r:5.4, t:Math.random()*6.28, a:a, rr:rr});
+      });
+
+      // 수집했지만 싣지 않은 이슈 — 바깥쪽에 흐리게
+      // 낱말 사이를 채우는 아주 옅은 별. 낱말을 가리지 않게 작고 흐리게 둔다.
+      (GX.stars||[]).slice(0, W > 560 ? 34 : 16).forEach(function(s,i){
+        var a = (i*2.399) + 1.1;
+        var rr = R*(0.50 + (i/34)*0.80);
+        nodes.push({on:false, title:s.title, track:s.track, sub:s.source+' · '+s.score+'점',
+          r:1.5, t:Math.random()*6.28, a:a, rr:rr});
+      });
+    }
+    build(); addEventListener('resize', build);
+
+    function at(mx,my){
+      for(var i=0;i<nodes.length;i++){
+        var n=nodes[i], d=Math.hypot(mx-n.px, my-n.py);
+        if(d < (n.on?16:9)) return n;
+      }
+      return null;
+    }
+    cv.addEventListener('mousemove', function(e){
+      var b=cv.getBoundingClientRect(), mx=e.clientX-b.left, my=e.clientY-b.top;
+      hover = at(mx,my);
+      cv.style.cursor = hover && hover.on ? 'pointer' : (hover ? 'help' : 'default');
+      if(hover){
+        tip.innerHTML = (hover.on ? '<b>'+String(hover.no).padStart(2,'0')+'번 항목 · 눌러서 이동</b>' : '<b>수집·검토 (미게재)</b>')
+                      + hover.title + '<br><span style="color:#7E96B5">'+hover.sub+'</span>'
+                      + (hover.why ? '<br><span style="color:#38E1FF">' + hover.why + '</span>' : '');
+        tip.style.opacity = 1;
+        tip.style.left = Math.min(mx+14, cv.clientWidth-300) + 'px';
+        tip.style.top  = Math.min(my+14, cv.clientHeight-90) + 'px';
+      } else tip.style.opacity = 0;
+    });
+    cv.addEventListener('mouseleave', function(){ hover=null; tip.style.opacity=0; });
+    cv.addEventListener('click', function(){
+      if(hover && hover.on){
+        var el = document.getElementById('item'+hover.no);
+        if(el) el.scrollIntoView({behavior: reduce?'auto':'smooth', block:'start'});
+      }
+    });
+
+    (function loop(){
+      t += reduce ? 0 : 0.0035;
+      cx.clearRect(0,0,W,H);
+      var cxp=W/2, cyp=H/2;
+
+      // 좌표 갱신 (아주 느린 공전)
+      nodes.forEach(function(n){
+        var a = n.a + t*(n.on?0.5:0.22);
+        n.px = cxp + Math.cos(a)*n.rr*1.35;
+        n.py = cyp + Math.sin(a)*n.rr;
+      });
+
+      // 게재 항목끼리 잇는 선
+      var on = nodes.filter(function(n){return n.on;});
+      cx.strokeStyle='rgba(190,220,255,.16)'; cx.lineWidth=1;
+      for(var i=0;i<on.length;i++){
+        cx.beginPath(); cx.moveTo(on[i].px,on[i].py);
+        cx.lineTo(on[(i+1)%on.length].px, on[(i+1)%on.length].py); cx.stroke();
+      }
+
+      // 이번 주 낱말
+      cx.textAlign='center'; cx.textBaseline='middle';
+      words.forEach(function(w){
+        w.t += 0.006;
+        cx.font = (w.on?700:400)+' '+w.size+'px TLDisplay,Paperlogy,sans-serif';
+        var al = (w.base + Math.abs(Math.sin(w.t))*0.14).toFixed(3);
+        cx.fillStyle = w.on ? rgba(w.track, Math.min(al*1.9,0.95)) : rgba(w.track, al*0.72);
+        cx.fillText(w.text, w.x, w.y);
+      });
+
+      // 별
+      var labels = [];
+      nodes.forEach(function(n){
+        n.t += n.on ? 0.03 : 0.014;
+        var tw = 0.55 + Math.abs(Math.sin(n.t))*0.45;
+        if(n.on){
+          var g = cx.createRadialGradient(n.px,n.py,0,n.px,n.py,24);
+          g.addColorStop(0, rgba(n.track,(0.58*tw).toFixed(3)));
+          g.addColorStop(1, rgba(n.track,0));
+          cx.fillStyle=g; cx.beginPath(); cx.arc(n.px,n.py,24,0,6.2832); cx.fill();
+          cx.fillStyle='#FFFFFF'; cx.beginPath();
+          cx.arc(n.px,n.py,n.r*(hover===n?1.3:1),0,6.2832); cx.fill();
+
+          // 번호 + 제목을 늘 보여 준다
+          cx.font='900 11px TLDisplay,Paperlogy,sans-serif';
+          cx.fillStyle=rgba(n.track,0.95);
+          cx.fillText(String(n.no).padStart(2,'0'), n.px, n.py-17);
+
+          // 좁은 화면에서는 라벨이 겹쳐 읽을 수 없다. 아래 목록으로 대신한다.
+          if(W > 560) labels.push(n);
+        } else {
+          cx.fillStyle = rgba(n.track, (0.26*tw).toFixed(3));
+          cx.beginPath(); cx.arc(n.px,n.py,n.r*(hover===n?2.4:1),0,6.2832); cx.fill();
+        }
+      });
+      // 라벨 — 서로 겹치지 않게 자리를 잡는다.
+      // 별이 천천히 공전하므로 매 프레임 다시 계산한다.
+      cx.font='700 12px TLDisplay,Paperlogy,Pretendard,"Malgun Gothic",sans-serif';
+      var placed = [];
+      labels.sort(function(a,b){ return a.py - b.py; });
+      labels.forEach(function(n){
+        var lw = cx.measureText(n.label).width, lh = 18;
+        var lx = Math.max(lw/2+8, Math.min(W-lw/2-8, n.px));
+        var ly = n.py + 20;
+        // 아래 → 위 → 더 아래 순으로 빈자리를 찾는다
+        var tries = [0, -42, 22, -64, 44, -86, 66];
+        for(var k=0;k<tries.length;k++){
+          var cand = ly + tries[k];
+          if(cand < 14 || cand > H-10) continue;
+          var box = {x:lx-lw/2-6, y:cand-9, w:lw+12, h:lh};
+          var clash = placed.some(function(q){
+            return !(box.x+box.w < q.x-4 || box.x > q.x+q.w+4 ||
+                     box.y+box.h < q.y-3 || box.y > q.y+q.h+3);
+          });
+          if(!clash){ ly = cand; placed.push(box); break; }
+          if(k === tries.length-1) placed.push(box);
+        }
+        cx.fillStyle='rgba(4,12,26,.82)';
+        cx.fillRect(lx-lw/2-6, ly-9, lw+12, lh);
+        cx.fillStyle = rgba(n.track, 0.35);
+        cx.fillRect(lx-lw/2-6, ly+8, lw+12, 1.5);
+        cx.fillStyle = hover===n ? '#FFFFFF' : 'rgba(226,240,255,.94)';
+        cx.fillText(n.label, lx, ly);
+      });
+
+      requestAnimationFrame(loop);
+    })();
+  }
+
+  /* ---------- 스크롤에 따라 항목 등장 ---------- */
+  function reveal(){
+    var items = document.querySelectorAll('.item');
+    if(reduce || !('IntersectionObserver' in window)){
+      items.forEach(function(el){ el.classList.add('seen'); }); return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('seen'); io.unobserve(e.target);} });
+    }, {rootMargin:'0px 0px -12% 0px', threshold:0.06});
+    items.forEach(function(el){ io.observe(el); });
+  }
+
+  try{ cover(); }catch(e){}
+  try{ galaxy(); }catch(e){ var l=document.querySelector('.gx-list'); if(l) l.style.display='block'; }
+  try{ reveal(); }catch(e){ document.querySelectorAll('.item').forEach(function(el){el.classList.add('seen');}); }
+})();
+</script>
+</body>
+</html>

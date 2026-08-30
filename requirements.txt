@@ -1,0 +1,10 @@
+# AI 동향지 반자동화 - 공통 의존성 (Mac 개발 / Windows 운영)
+requests>=2.31
+urllib3<2            ; python_version < "3.10"   # macOS 기본 LibreSSL 대응
+beautifulsoup4>=4.12
+lxml>=4.9
+Jinja2>=3.1
+PyYAML>=6.0
+Flask>=3.0
+fonttools>=4.40      # 표지 글꼴을 쓰이는 글자만 잘라 담기 위해
+brotli>=1.0          # woff2 압축
