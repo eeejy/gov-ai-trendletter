@@ -49,8 +49,7 @@ PHASES = [
     ("collect", "자료 수집", 0.40),
     ("cluster", "중복 통합·선별", 0.05),
     ("topic", "핫이슈 종합", 0.12),
-    ("draft", "Claude 초안 작성", 0.33),
-    ("video", "관련 영상", 0.10),
+    ("draft", "Claude 초안 작성", 0.43),
 ]
 
 
@@ -227,17 +226,6 @@ def _collect_job(body: Dict[str, Any]):
                     JOB["done"] = min(JOB["done"] + 1, JOB["total"])
 
         pipeline.polish(issue, clusters, cfg, progress=on_item)
-
-    if body.get("use_video", True):
-        _job_set(phase="video", detail="관련 영상을 찾는 중…",
-                 done=0, total=len(issue.items))
-
-        def on_video(line: str) -> None:
-            _job_log(line)
-            with JOB_LOCK:
-                JOB["done"] = min(JOB["done"] + 1, JOB["total"])
-
-        pipeline.attach_videos(issue, progress=on_video)
 
     store.save_draft(issue)
     return issue

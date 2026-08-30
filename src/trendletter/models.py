@@ -117,7 +117,6 @@ class Item:
     # 어느 쪽이 더 나은지 담당자가 오가며 비교할 수 있다.
     notes: Dict[str, str] = field(default_factory=lambda: {"시사점": "", "향후계획": ""})
     links: List[Dict[str, str]] = field(default_factory=list)
-    videos: List[Dict[str, str]] = field(default_factory=list)   # 관련 유튜브 영상
     onto: Dict[str, List[str]] = field(default_factory=dict)
     locked: bool = False                # 사람이 수정한 항목 잠금
     origin_keys: List[str] = field(default_factory=list)

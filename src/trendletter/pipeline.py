@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 
-from . import llm, store, youtube
+from . import llm, store
 from .collectors import build
 from .config import Config, load
 from .dedupe import cluster, merge_by_entity, near_duplicates, similarity
@@ -596,14 +596,4 @@ def add_trend_items(issue: Issue, topics: List[Dict[str, Any]],
     issue.items = (issue.items[: total - len(made)]) + made
     for i, it in enumerate(issue.items, 1):
         it.no = i
-    return issue
-
-
-def attach_videos(issue: Issue, progress: Optional[Callable[[str], None]] = None) -> Issue:
-    """항목마다 관련 영상을 붙인다. 제목이 확정된 뒤(초안 작성 후) 부른다."""
-    say = progress or (lambda m: None)
-    try:
-        youtube.enrich(issue.items, progress=say)
-    except Exception as exc:  # noqa: BLE001 - 영상은 부가 정보다
-        say("  ! 관련 영상 수집 실패: %s" % str(exc)[:90])
     return issue

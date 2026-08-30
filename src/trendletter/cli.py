@@ -61,9 +61,6 @@ def cmd_draft(args) -> int:
     if not args.no_llm:
         pipeline.add_trend_items(issue, topics, cfg, progress=_say)
         pipeline.polish(issue, clusters, cfg, progress=_say)
-    if not args.no_video:
-        _say("  · 관련 영상 찾는 중…")
-        pipeline.attach_videos(issue, progress=_say)
     path = store.save_draft(issue)
     _say("초안 %s · %d건 → %s" % (issue.label, len(issue.items), path))
     for it in issue.items:
@@ -209,7 +206,6 @@ def main(argv=None) -> int:
     d.add_argument("--reuse", action="store_true", help="마지막 수집 결과 재사용")
     d.add_argument("--no-cache", action="store_true")
     d.add_argument("--no-llm", action="store_true", help="Claude 초안 작성을 건너뜀")
-    d.add_argument("--no-video", action="store_true", help="관련 영상 수집을 건너뜀")
     d.set_defaults(func=cmd_draft)
 
     r = sub.add_parser("render", help="초안 HTML 미리보기")
