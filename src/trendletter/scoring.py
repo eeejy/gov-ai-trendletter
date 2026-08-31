@@ -664,6 +664,9 @@ _TERM_DISPLAY = {"에이전트": "AI 에이전트"}
 _TOO_BROAD = {
     "보안", "검증", "api", "ide", "자동화", "센서", "개인정보", "윤리",
     "로봇", "드론", "클라우드", "데이터센터", "반도체", "gpu", "빅데이터",
+    # 본문까지 세면서 걸려든 것들. 달·요일 약어는 제품 이름이 아니다.
+    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    "ai 에이전트", "에이전트", "생성형 ai", "llm", "환각", "멀티모달",
 }
 
 
@@ -686,10 +689,14 @@ def tech_keywords(clusters: List[Cluster], cfg: Config, limit: int = 5) -> List[
     display: Dict[str, str] = {}
     for c in clusters:
         title = c.lead.title
-        low = title.lower()
+        # 제목만 세면 실제로 화제인 것을 놓친다. 실측: GLM 은 영문 제목 한 건에만
+        # 있고 국문 기사는 「Ox 알파…지푸의 신형 AI」처럼 본문에서만 다뤄
+        # 1회로 집계돼 핫이슈 후보에도 못 들었다. 본문 앞머리까지 함께 본다.
+        body = " ".join((a.summary or "")[:400] for a in c.articles[:3])
+        low = (title + " " + body).lower()
         seen = set()
         # 제품·모델 이름
-        for name in entities(title):
+        for name in entities(title + " " + body):
             if not is_product(name) or name in seen:
                 continue
             seen.add(name)

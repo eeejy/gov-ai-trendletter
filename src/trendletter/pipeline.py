@@ -357,18 +357,45 @@ def llm_rerank(clusters: List[Cluster], cfg: Config,
     picked = picked[:total_max]
 
     # 트랙 구성은 지난 11개 호를 세어 정한 값이다. 모델이 어겨도 그쪽이 이기게
-    # 두지 않는다. 어기면 규칙 결과로 돌아간다.
-    got: Dict[str, int] = {}
-    for c in picked:
-        got[c.lead.track] = got.get(c.lead.track, 0) + 1
-    for track, bounds in quota.items():
-        n = got.get(track, 0)
-        if not int(bounds[0]) <= n <= int(bounds[1]):
-            say("  ! 재순위의 %s 트랙이 %d건(허용 %d~%d)이라 규칙 결과를 씁니다"
-                % (track, n, int(bounds[0]), int(bounds[1])))
-            return None
+    # 두지 않는다. 다만 통째로 버리면 재순위의 이점(같은 주 자료 blind 심사
+    # 46점 대 89점)까지 함께 잃는다. 넘치는 것만 덜어내고 모자란 것은 규칙
+    # 순위에서 채운다.
+    def tally(rows):
+        got: Dict[str, int] = {}
+        for c in rows:
+            got[c.lead.track] = got.get(c.lead.track, 0) + 1
+        return got
 
-    say("  · Claude 재순위: 상위 %d개 중 %d건 선정" % (len(head), len(picked)))
+    # ① 상한을 넘긴 트랙은 뒤쪽부터 덜어낸다
+    trimmed, got = [], {}
+    for c in picked:
+        track = c.lead.track
+        cap = int(quota.get(track, [0, total_max])[1])
+        if got.get(track, 0) >= cap:
+            continue
+        got[track] = got.get(track, 0) + 1
+        trimmed.append(c)
+
+    # ② 하한에 못 미치는 트랙은 규칙 순위에서 채운다
+    chosen_ids = {id(c) for c in trimmed}
+    for track, bounds in quota.items():
+        need = int(bounds[0]) - tally(trimmed).get(track, 0)
+        for c in clusters:
+            if need <= 0:
+                break
+            if id(c) in chosen_ids or c.lead.track != track:
+                continue
+            trimmed.append(c)
+            chosen_ids.add(id(c))
+            need -= 1
+        if need > 0:
+            say("  ! %s 트랙 후보가 %d건 모자랍니다" % (track, need))
+
+    picked = trimmed[:total_max]
+    filled = len(picked) - sum(1 for c in picked if getattr(c, "llm_reason", ""))
+    say("  · Claude 재순위: 상위 %d개 중 %d건 선정%s"
+        % (len(head), len(picked),
+           " (트랙 하한을 채우려 %d건은 규칙 순위에서)" % filled if filled else ""))
     return picked
 
 
