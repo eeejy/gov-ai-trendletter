@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -83,6 +84,84 @@ def _fallback_summary(issue: Issue, cfg: Config) -> str:
         if note:
             lines.append("   → %s" % _clip(note, 38))
     return "\n".join(lines)
+
+
+MARKS = ["1\u20e3", "2\u20e3", "3\u20e3", "4\u20e3", "5\u20e3",
+         "6\u20e3", "7\u20e3", "8\u20e3", "9\u20e3", "\U0001F51F"]
+
+# 텔레그램 한 메시지 상한은 4096자다. 여유를 두고 자른다.
+DAILY_LIMIT = 3800
+
+
+# 본문 앞머리에 자주 붙는 껍데기. 사람이 읽을 내용이 아니다.
+_JUNK_PREFIX = re.compile(
+    r"^(?:article detail|링크\s*복사|공유|AI\s*요약|기사\s*원문|입력|수정|"
+    r"[A-Za-z0-9.-]+\.(?:net|com|kr|co\.kr)|"          # v.daum.net 같은 도메인
+    r"\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.?|"           # 2026. 8. 31.
+    r"오전|오후|\d{1,2}:\d{2}|[Xx]|[·|\-–—,]|\s)+"
+)
+# 알맹이가 없는 상투 문구. 이런 본문은 아예 싣지 않는다.
+_BOILERPLATE = (
+    "자세한 내용은 첨부파일", "첨부파일을 참고", "붙임 참조", "관련 보도자료 내용입니다",
+    "아래 첨부파일", "첨부 참조",
+)
+
+
+def _gist(article, limit: int = 150) -> str:
+    """기사 앞머리에서 읽을 만한 부분만 뽑는다. 없으면 빈 문자열."""
+    text = " ".join((article.summary or "").split())
+    if not text:
+        return ""
+    title = " ".join((article.title or "").split()).strip("\u201c\u201d\"' ")
+    # 껍데기와 되풀이된 제목이 번갈아 붙어 있어 두 번 훑는다
+    for _ in range(2):
+        text = _JUNK_PREFIX.sub("", text)
+        head = text.lstrip("\u201c\u201d\"' ")
+        if title and head.startswith(title):
+            text = head[len(title):].lstrip(" .\u00b7-\u2013\u2014\u201c\u201d\"'")
+    if any(k in text for k in _BOILERPLATE):
+        return ""
+    return _clip(text, limit) if len(text) > 25 else ""
+
+
+def daily_text(clusters, collected: int, day) -> str:
+    """일간 브리핑 문구. 요약을 지어내지 않고 기사 앞머리와 링크만 싣는다.
+
+    사람 검토 없이 자동 발송되므로, 모델이 쓴 문장을 넣지 않는 것이 안전하다.
+    판단은 받는 사람이 원문을 보고 한다.
+    """
+    head = "\U0001F4F0 %d.%d.(%s) AI 동향" % (
+        day.month, day.day, "월화수목금토일"[day.weekday()])
+    if not clusters:
+        return ("%s\n\n어제는 담을 만한 소식이 없었습니다. (수집 %d건)"
+                % (head, collected))
+
+    lines = ["%s · %d건 (수집 %d건)" % (head, len(clusters), collected), ""]
+    for i, c in enumerate(clusters):
+        a = c.lead
+        when = a.published.strftime("%-m.%-d") if a.published else ""
+        gist = _gist(a)
+        lines.append("%s %s" % (MARKS[i] if i < len(MARKS) else "\u25aa\ufe0f",
+                                _clip(a.title, 60)))
+        lines.append("   %s%s" % (a.source_name, " · " + when if when else ""))
+        if gist:
+            lines.append("   %s" % gist)
+        if a.url:
+            lines.append("   %s" % a.url)
+        lines.append("")
+        if sum(len(x) + 1 for x in lines) > DAILY_LIMIT:
+            lines.append("(길이 제한으로 나머지는 생략)")
+            break
+    return "\n".join(lines).rstrip()
+
+
+def send_text(text: str, cfg: Optional[Config] = None) -> Dict[str, Any]:
+    """직원 채널로 짧은 글을 보낸다. 링크 미리보기는 끈다(6건이면 화면이 길어진다)."""
+    cfg = cfg or load()
+    token, chat_id = _creds(cfg)
+    result = _call(token, "sendMessage", chat_id=chat_id, text=text,
+                   disable_web_page_preview="true")
+    return {"ok": True, "message_id": result.get("message_id")}
 
 
 def summarize(issue: Issue, cfg: Optional[Config] = None) -> str:

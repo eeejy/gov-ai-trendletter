@@ -7,6 +7,7 @@
   editor    로컬 웹 편집기 실행
   sources   수집원 상태 점검
   doctor    설치·설정이 갖춰졌는지 한 번에 점검
+  daily     일간 브리핑 (Claude 없이 수집·점수만)
 """
 
 from __future__ import annotations
@@ -136,6 +137,52 @@ def cmd_publish(args) -> int:
                 _say("텔레그램 발송 완료 (message_id %s)" % r.get("message_id"))
         except Exception as exc:  # noqa: BLE001 - 발행 자체는 이미 끝났다
             _say("텔레그램 발송 실패: %s" % str(exc)[:200])
+    return 0
+
+
+def cmd_daily(args) -> int:
+    """일간 브리핑. Claude 를 쓰지 않고 수집·점수만으로 상위 몇 건을 보낸다.
+
+    주간 동향지와는 다른 물건이다. 시사점을 쓰지 않고 기사 본문 앞머리와
+    원문 링크만 보낸다. 판단은 사람이 원문을 보고 한다.
+    사람 검토 없이 나가므로, 요약을 지어내지 않는 것이 안전 설계다.
+    """
+    from trendletter import telegram as tg
+    from trendletter.scoring import select
+
+    cfg = load()
+    days = args.days or 1
+    top = args.top or int(cfg.get("daily.top", 6))
+    floor = float(args.min_score if args.min_score is not None
+                  else cfg.get("daily.min_score", 8.0))
+
+    started = datetime.now()
+    _say("[%s] 일간 브리핑 (최근 %d일)" % (started.strftime("%m-%d %H:%M"), days))
+    articles = pipeline.collect(cfg, days=days, progress=_say)
+    if not articles:
+        _say("수집된 자료가 없습니다.")
+    clusters = pipeline.build_clusters(articles, cfg)
+    pipeline.enrich_bodies(clusters, progress=_say)
+    clusters = pipeline.build_clusters(articles, cfg)
+
+    picked = [c for c in clusters if c.score >= floor][:top]
+    _say("클러스터 %d개 · %.1f점 이상 %d건 → 상위 %d건"
+         % (len(clusters), floor, sum(1 for c in clusters if c.score >= floor),
+            len(picked)))
+
+    text = tg.daily_text(picked, len(articles), started.date())
+    _say("\n" + text + "\n")
+    _say("(%d자)" % len(text))
+
+    if not args.send:
+        _say("실제로 보내려면 --send 를 붙이세요.")
+        return 0
+    try:
+        tg.notify_admin(text, cfg) if args.to_admin else tg.send_text(text, cfg)
+    except Exception as exc:  # noqa: BLE001
+        _say("발송 실패: %s" % exc)
+        return 1
+    _say("발송 완료")
     return 0
 
 
@@ -451,6 +498,14 @@ def main(argv=None) -> int:
     b.add_argument("--no-telegram", action="store_true", help="발행 후 텔레그램 발송 안 함")
     b.add_argument("--dry-run", action="store_true", help="텔레그램 내용만 미리 보기")
     b.set_defaults(func=cmd_publish)
+
+    dl = sub.add_parser("daily", help="일간 브리핑 (Claude 없이 수집·점수만)")
+    dl.add_argument("--days", type=int, help="며칠치를 볼지 (기본 1)")
+    dl.add_argument("--top", type=int, help="최대 몇 건 (기본 6)")
+    dl.add_argument("--min-score", type=float, help="이 점수 미만은 싣지 않음 (기본 8.0)")
+    dl.add_argument("--send", action="store_true", help="실제로 발송 (없으면 미리보기)")
+    dl.add_argument("--to-admin", action="store_true", help="채널 대신 담당자에게만")
+    dl.set_defaults(func=cmd_daily)
 
     w = sub.add_parser("weekly", help="예약 실행용 — 초안까지만 만들고 담당자에게 알림")
     w.add_argument("--days", type=int)
