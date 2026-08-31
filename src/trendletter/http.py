@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import threading
 import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional
@@ -42,16 +43,18 @@ class Fetcher:
             }
         )
         self._last_hit: Dict[str, float] = {}
+        # 수집원을 병렬로 돌리므로 호스트 간격 기록을 여럿이 함께 만진다
+        self._hit_lock = threading.Lock()
 
     def _throttle(self, url: str) -> None:
         host = urlparse(url).netloc
         gap = HOST_INTERVAL.get(host, DEFAULT_INTERVAL)
-        last = self._last_hit.get(host)
-        if last is not None:
-            wait = gap - (time.monotonic() - last)
-            if wait > 0:
-                time.sleep(wait)
-        self._last_hit[host] = time.monotonic()
+        with self._hit_lock:
+            last = self._last_hit.get(host)
+            wait = gap - (time.monotonic() - last) if last is not None else 0
+            self._last_hit[host] = time.monotonic() + max(wait, 0)
+        if wait > 0:
+            time.sleep(wait)
 
     def _cache_path(self, url: str):
         name = hashlib.sha1(url.encode("utf-8")).hexdigest()[:20] + ".bin"

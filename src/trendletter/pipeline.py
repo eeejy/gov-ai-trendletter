@@ -36,21 +36,33 @@ def collect(
     say = progress or (lambda m: None)
     articles: List[Article] = []
     health: List[dict] = []      # 수집기별 결과. 사이트가 바뀌어 조용히 0건이 되는 걸 잡는다
-    for source in cfg.enabled_sources(only):
-        # 수집 기간은 모든 수집원에 똑같이 적용한다.
-        # 일부만 늘리면 같은 화면에서 몇 주 전 소식과 이번 주 소식이 뒤섞인다.
-        # 더 넓게 보려면 편집기에서 수집 기간 자체를 늘린다.
+
+    # 수집원을 하나씩 돌면 느린 곳 하나가 전체를 붙잡는다. 실측: GitHub Actions
+    # 러너(미국)에서 국내 기관 사이트 한 곳에 80초가 걸려 15곳 중 2곳만 하고
+    # 10분 제한에 잘렸다. 서로 다른 사이트라 함께 돌려도 무리가 없다.
+    # 수집 기간은 모든 수집원에 똑같이 적용한다. 일부만 늘리면 같은 화면에서
+    # 몇 주 전 소식과 이번 주 소식이 뒤섞인다.
+    sources = list(cfg.enabled_sources(only))
+
+    def one(source):
         try:
             got = build(source, fetcher).collect(since, limit)
         except Exception as exc:  # noqa: BLE001 - 한 소스 실패가 전체를 막지 않는다
-            say("  ! %s 수집 실패: %s" % (source["name"], exc))
-            health.append({"name": source["name"], "n": -1, "error": str(exc)[:120]})
-            continue
-        for a in got:
-            a.raw.setdefault("role", source.get("role", "primary"))
-        articles.extend(got)
-        health.append({"name": source["name"], "n": len(got), "error": ""})
-        say("  · %-22s %3d건" % (source["name"], len(got)))
+            return source, None, str(exc)[:120]
+        return source, got, ""
+
+    workers = max(1, min(int(cfg.get("collect.workers", 8)), len(sources) or 1))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for source, got, err in pool.map(one, sources):
+            if got is None:
+                say("  ! %s 수집 실패: %s" % (source["name"], err))
+                health.append({"name": source["name"], "n": -1, "error": err})
+                continue
+            for a in got:
+                a.raw.setdefault("role", source.get("role", "primary"))
+            articles.extend(got)
+            health.append({"name": source["name"], "n": len(got), "error": ""})
+            say("  · %-22s %3d건" % (source["name"], len(got)))
 
     LAST_HEALTH[:] = health
     for line in health_warnings(health):
