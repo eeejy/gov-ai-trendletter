@@ -76,6 +76,7 @@ class Cluster:
     hot_entity: Dict[str, Any] = field(default_factory=dict)  # 여러 플랫폼에 걸친 이름
     work_groups: List[str] = field(default_factory=list)      # 걸린 업무 관련도 그룹
     priority_topic: str = ""                                  # 최우선 주제(전략위 등)
+    llm_reason: str = ""                                      # Claude 재순위 선정 사유
 
     @property
     def lead(self) -> Article:

@@ -46,10 +46,10 @@ JOB_LOCK = threading.Lock()
 
 # 단계별 대략적인 비중 (진행률 막대에 쓴다)
 PHASES = [
-    ("collect", "자료 수집", 0.40),
-    ("cluster", "중복 통합·선별", 0.05),
-    ("topic", "핫이슈 종합", 0.12),
-    ("draft", "Claude 초안 작성", 0.43),
+    ("collect", "자료 수집", 0.34),
+    ("cluster", "중복 통합·본문 확보·선별", 0.18),
+    ("topic", "핫이슈 종합", 0.10),
+    ("draft", "Claude 초안 작성", 0.38),
 ]
 
 
@@ -203,9 +203,14 @@ def _collect_job(body: Dict[str, Any]):
     store.save_raw(articles)
     _job_set(phase="cluster", detail="%d건을 중복 통합하는 중…" % len(articles),
              done=0, total=1)
+
+    def on_rank(msg: str) -> None:
+        _job_set(phase="cluster", detail=msg.strip(" ·!"))
+
     issue = pipeline.make_draft(
         articles,
         cfg,
+        progress=on_rank,
         theme=body.get("theme", ""),
         period_from=period_from,
         period_to=period_to,

@@ -74,6 +74,11 @@ python tools_sources.py       # 수집원 현황 + 라이브 점검
 python tools_schedule.py      # 매주 정해진 시각에 초안 자동 생성 예약
 ```
 
+## 무엇을 어떻게 고르나
+
+규칙 점수로 후보를 좁히고(재현 가능), 그 안에서 Claude 가 본문을 읽고 고른다.
+항목마다 규칙 순위와 선정 사유가 함께 남는다 — [docs/pipeline.md](docs/pipeline.md)
+
 ## 결과물
 
 **완전한 스탠드얼론 HTML 한 장**(약 260KB). 글꼴·CSS·JS 를 모두 담고 있어

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
@@ -214,6 +215,139 @@ def to_item(cl: Cluster, no: int) -> Item:
     )
 
 
+def enrich_bodies(clusters: List[Cluster],
+                  limit: int = 0,
+                  progress: Optional[Callable[[str], None]] = None) -> int:
+    """순위를 매기기 **전에** 본문이 빈 항목의 본문을 받아 온다.
+
+    서울 AI 플랫폼·Reddit·Hacker News 는 목록에 제목만 준다. 그대로 두면
+    제목만으로 점수가 매겨져 구조적으로 밀린다(측정: 본문 있는 클러스터의
+    순위 중앙값 54위 대 제목뿐 124위). 클러스터 단위로 병렬 수집하면
+    65건에 3초쯤 걸린다.
+    """
+    import json as _json
+
+    say = progress or (lambda m: None)
+    todo = [c for c in clusters if not (c.lead.summary or "").strip()]
+    if limit:
+        todo = todo[:limit]
+    if not todo:
+        return 0
+
+    fetcher = Fetcher()
+    seoul_url = "https://seoulai.saif.or.kr/hmpg/bpst/bpstPostSummary.do"
+
+    def grab(cl: Cluster) -> int:
+        a = cl.lead
+        try:
+            if a.source_id == "seoul_ai" and (a.raw.get("keys") or [None])[0]:
+                mng, pst = a.raw["keys"]
+                data = _json.loads(fetcher.post(
+                    seoul_url, [("hmpg_mng_no", mng), ("pst_no", pst)]))
+                text = " ".join((data.get("summary") or "").split())
+            else:
+                if not a.url:
+                    return 0
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(fetcher.get(a.url), "lxml")
+                for tag in soup(["script", "style", "nav", "header", "footer"]):
+                    tag.decompose()
+                node = (soup.find("article") or soup.find("main")
+                        or soup.find(attrs={"class": "content"}) or soup.body)
+                text = " ".join((node.get_text(" ") if node else "").split())
+        except Exception:  # noqa: BLE001 - 한 건 실패가 전체를 막지 않는다
+            return 0
+        if not text:
+            return 0
+        a.summary = text[:900]
+        return 1
+
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        got = sum(pool.map(grab, todo))
+    say("  · 본문 없는 %d건 중 %d건 채움" % (len(todo), got))
+    return got
+
+
+def llm_rerank(clusters: List[Cluster], cfg: Config,
+               pool: int = 40,
+               progress: Optional[Callable[[str], None]] = None
+               ) -> Optional[List[Cluster]]:
+    """규칙 점수 상위 pool 개를 Claude 가 본문까지 읽고 다시 고른다.
+
+    규칙 점수는 낱말이 몇 번 걸렸는지로 매겨진다. 본문을 채우면 좋은 정책
+    자료도 오르지만 개발 잡음도 같이 오른다. 여기서 그 둘을 갈라 준다.
+
+    규칙 단계가 '무엇이 후보인가' 를 정하고(재현·감사 가능), 이 단계는
+    '그 안에서 무엇이 중요한가' 만 판단한다. 실패하면 None 을 돌려주고
+    부르는 쪽이 규칙 결과를 그대로 쓴다.
+    """
+    say = progress or (lambda m: None)
+    if not llm.available():
+        return None
+    head = clusters[:pool]
+    if len(head) < 8:
+        return None
+
+    quota = cfg.get("compose.quota", {}) or {}
+    payload = [
+        {
+            "index": i,
+            "title": c.lead.title,
+            "source": c.lead.source_name,
+            "track": c.lead.track,
+            "outlets": len(c.outlets),
+            "rule_score": round(c.score, 1),
+            "summary": (c.lead.summary or "")[:600],
+        }
+        for i, c in enumerate(head)
+    ]
+    prompt = (
+        llm._load_prompt("select_rank.md")
+        .replace("{{DAYS}}", str(cfg.get("collect.days", 7)))
+        .replace("{{TOTAL_MAX}}", str(cfg.get("compose.total_max", 6)))
+        .replace("{{POLICY_MIN}}", str(quota.get("policy", [3, 4])[0]))
+        .replace("{{POLICY_MAX}}", str(quota.get("policy", [3, 4])[1]))
+        .replace("{{INDUSTRY_MIN}}", str(quota.get("industry", [2, 3])[0]))
+        .replace("{{INDUSTRY_MAX}}", str(quota.get("industry", [2, 3])[1]))
+        .replace("{{CANDIDATES_JSON}}", json.dumps(payload, ensure_ascii=False, indent=1))
+    )
+    try:
+        data = llm._extract_json(llm.run(prompt))
+    except Exception as exc:  # noqa: BLE001 - 실패하면 규칙 결과를 쓴다
+        say("  ! 재순위 실패(규칙 결과 사용): %s" % str(exc)[:90])
+        return None
+
+    picked, seen = [], set()
+    for row in sorted(data.get("selected") or [],
+                      key=lambda r: r.get("order", 99)):
+        i = row.get("cluster_index")
+        if not isinstance(i, int) or not 0 <= i < len(head) or i in seen:
+            continue
+        seen.add(i)
+        head[i].llm_reason = (row.get("reason") or "").strip()
+        picked.append(head[i])
+    total_max = int(cfg.get("compose.total_max", 6))
+    if len(picked) < total_max:
+        say("  ! 재순위가 %d건만 골라 규칙 결과를 씁니다" % len(picked))
+        return None
+    picked = picked[:total_max]
+
+    # 트랙 구성은 지난 11개 호를 세어 정한 값이다. 모델이 어겨도 그쪽이 이기게
+    # 두지 않는다. 어기면 규칙 결과로 돌아간다.
+    got: Dict[str, int] = {}
+    for c in picked:
+        got[c.lead.track] = got.get(c.lead.track, 0) + 1
+    for track, bounds in quota.items():
+        n = got.get(track, 0)
+        if not int(bounds[0]) <= n <= int(bounds[1]):
+            say("  ! 재순위의 %s 트랙이 %d건(허용 %d~%d)이라 규칙 결과를 씁니다"
+                % (track, n, int(bounds[0]), int(bounds[1])))
+            return None
+
+    say("  · Claude 재순위: 상위 %d개 중 %d건 선정" % (len(head), len(picked)))
+    return picked
+
+
 def fill_summaries(clusters_by_key: Dict[str, Cluster],
                    progress: Optional[Callable[[str], None]] = None) -> None:
     """서울 AI 플랫폼 항목의 요약을 뒤늦게 채운다.
@@ -349,6 +483,7 @@ def make_draft(
     period_to: Optional[date] = None,
     published_on: Optional[date] = None,
     number: Optional[int] = None,
+    progress: Optional[Callable[[str], None]] = None,
 ) -> Issue:
     cfg = cfg or load()
     days = days or int(cfg.get("collect.days", 7))
@@ -360,7 +495,25 @@ def make_draft(
             float(cfg.get("dedupe.entity_min_similarity", 0.30)), is_product,
         )
     clusters = build_clusters(articles, cfg)
+
+    # 순위를 매기기 전에 본문이 빈 항목을 채운다. 제목만으로 점수를 매기면
+    # 서울 AI 플랫폼·HN 같은 목록형 수집원이 구조적으로 밀린다.
+    if cfg.get("compose.enrich_before_rank", True):
+        enrich_bodies(clusters, progress=progress)
+        clusters = build_clusters(articles, cfg)     # 채운 본문으로 다시 채점
+
+    rule_rank = {id(c): i + 1 for i, c in enumerate(clusters)}
     chosen = select(clusters, cfg)
+
+    # 본문을 채우면 좋은 정책 자료도 오르지만 낱말이 많이 걸리는 개발 잡음도
+    # 함께 오른다. Claude 가 상위 후보의 본문을 읽고 그 둘을 가른다.
+    # 실패하면 규칙 결과를 그대로 쓴다.
+    if cfg.get("compose.llm_rerank", True):
+        picked = llm_rerank(clusters, cfg,
+                            pool=int(cfg.get("compose.rerank_pool", 40)),
+                            progress=progress)
+        if picked:
+            chosen = picked
 
     # 병합되지 않았지만 같은 사건일 수 있는 짝을 표시한다.
     # 자동 병합은 잘못 묶일 위험이 커서, 판단은 담당자에게 남긴다.
@@ -376,6 +529,12 @@ def make_draft(
         item.why = explain(
             cl, cfg, track_rank.get(id(cl), 0), seen_track.get(cl.lead.track, 0)
         )
+        # 규칙이 몇 위로 봤는지도 남긴다. Claude 가 올린 항목을 되짚을 수 있어야 한다
+        rank = rule_rank.get(id(cl))
+        if rank:
+            item.why.append("규칙 점수 %d위" % rank)
+        if getattr(cl, "llm_reason", ""):
+            item.why.append("Claude 선정: " + cl.llm_reason)
     for i, j, s in warn:
         items[i].similar_to.append("%02d번과 유사 (%.2f)" % (j + 1, s))
         items[j].similar_to.append("%02d번과 유사 (%.2f)" % (i + 1, s))

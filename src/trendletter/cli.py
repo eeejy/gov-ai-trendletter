@@ -71,7 +71,8 @@ def cmd_draft(args) -> int:
         )
         store.save_raw(articles)
 
-    issue = pipeline.make_draft(articles, cfg, days=args.days, theme=args.theme or "")
+    issue = pipeline.make_draft(articles, cfg, days=args.days,
+                                theme=args.theme or "", progress=_say)
     issue.meta["sources_used"] = len({a.source_id for a in articles})
     clusters = issue.meta.pop("_clusters", {})
     issue.meta.pop("_all_clusters", None)
@@ -151,7 +152,7 @@ def cmd_weekly(args) -> int:
     try:
         articles = pipeline.collect(cfg, days=args.days, progress=_say)
         store.save_raw(articles)
-        issue = pipeline.make_draft(articles, cfg, days=args.days)
+        issue = pipeline.make_draft(articles, cfg, days=args.days, progress=_say)
         issue.meta["sources_used"] = len({a.source_id for a in articles})
         clusters = issue.meta.pop("_clusters", {})
         issue.meta.pop("_all_clusters", None)
