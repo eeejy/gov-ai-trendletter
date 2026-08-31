@@ -8,7 +8,11 @@ from typing import Any, Dict, List
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
+# 다른 저장소(일간 브리핑 등)가 이 엔진을 그대로 끌어다 쓸 수 있게,
+# 루트를 환경변수로 바꿀 수 있다. 설정·온톨로지를 한 벌만 두기 위함이다.
+#   TRENDLETTER_ROOT=/path/to/gov-ai-trendletter
+ROOT = Path(os.environ.get("TRENDLETTER_ROOT")
+            or Path(__file__).resolve().parents[2]).resolve()
 CONFIG_DIR = ROOT / "config"
 
 
