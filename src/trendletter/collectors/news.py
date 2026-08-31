@@ -177,3 +177,73 @@ class ItNewsMoaCollector(Collector):
             if len(out) >= limit:
                 break
         return out
+
+
+class GoogleNewsCollector(Collector):
+    """구글 뉴스 검색 RSS.
+
+    기관 게시판·전문지만 보면 우리청 관련 언론 보도를 통째로 놓친다.
+    실제로 「해양경찰청, AI·친환경·K-조선·방산 기술로 차세대 함정 청사진」과
+    「스텔라비전, 해경 항공 AI '딥 블루 아이' 개발 참여」는 기존 14개 수집원
+    어디에도 올라오지 않았다. 지난 11개 호에서 내부 소식이 19%였는데
+    그 공백을 이 수집기가 메운다.
+
+    제목이 '기사 제목 - 매체명' 꼴이라 매체명을 떼어 출처로 쓴다.
+    같은 사건을 여러 매체가 쓰므로 중복이 많지만, 그건 뒤의 엔티티 병합이
+    처리한다. 오히려 매체 수가 중요도 신호가 된다.
+    """
+
+    name = "google_news"
+    BASE = "https://news.google.com/rss/search"
+
+    def collect(self, since: datetime, limit: int) -> List[Article]:
+        out: List[Article] = []
+        seen = set()
+        for q in self.params.get("queries", []):
+            url = q["url"] if isinstance(q, dict) and "url" in q else self._build(q)
+            try:
+                xml = self.fetcher.get(url)
+            except RuntimeError:
+                continue
+            soup = BeautifulSoup(xml, "xml")
+            for node in soup.find_all("item"):
+                link = clean(node.link.get_text() if node.link else "")
+                raw_title = node.title.get_text() if node.title else ""
+                title, outlet = self._split(raw_title)
+                key = title.lower()
+                if not link or not title or key in seen:
+                    continue
+                published = parse_date(node.pubDate.get_text() if node.pubDate else "")
+                if not within(published, since):
+                    continue
+                seen.add(key)
+                out.append(
+                    self.make(
+                        title, link,
+                        published=published,
+                        # 구글 뉴스 description 은 링크 뭉치뿐이라 본문으로 쓰지 않는다.
+                        # 필요하면 enrich_bodies 가 원문에서 받아 온다.
+                        summary="",
+                        raw={"dept": outlet} if outlet else {},
+                    )
+                )
+                if len(out) >= limit:
+                    return out
+        return out
+
+    def _build(self, q) -> str:
+        from urllib.parse import quote
+        term = q if isinstance(q, str) else q.get("q", "")
+        return "%s?q=%s&hl=ko&gl=KR&ceid=KR:ko" % (self.BASE, quote(term))
+
+    @staticmethod
+    def _split(raw: str) -> tuple:
+        """'제목 - 매체명' 을 나눈다. 제목 안에 하이픈이 있어도 마지막 것만 본다."""
+        text = clean(raw)
+        if " - " not in text:
+            return text, ""
+        head, _, tail = text.rpartition(" - ")
+        # 매체명은 짧다. 길면 제목의 일부로 본다.
+        if head and len(tail) <= 20:
+            return head.strip(), tail.strip()
+        return text, ""

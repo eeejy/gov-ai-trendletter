@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -146,3 +146,71 @@ def list_issues() -> List[Dict[str, Any]]:
     for f in sorted(load().path("html_dir").glob("*.html")):
         out.append({"name": f.name, "path": str(f), "mtime": f.stat().st_mtime})
     return out
+
+
+# ── 일간 브리핑 발송 기록 ──────────────────────────────────
+# 같은 소식을 이튿날 또 보내지 않기 위해 보낸 것의 지문을 남긴다.
+# GitHub Actions 에서 돌 때는 이 파일을 커밋해 상태를 잇는다.
+SEEN_KEEP_DAYS = 45
+
+
+def seen_path() -> Path:
+    return load().path("raw_dir").parent / "seen.json"
+
+
+def load_seen() -> Dict[str, str]:
+    f = seen_path()
+    if not f.exists():
+        return {}
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:  # noqa: BLE001 - 기록이 깨져도 발송을 막지 않는다
+        return {}
+
+
+def save_seen(seen: Dict[str, Any]) -> Path:
+    """오래된 기록은 버리고 저장한다. 무한히 자라면 안 된다."""
+    cut = (datetime.now() - timedelta(days=SEEN_KEEP_DAYS)).strftime("%Y-%m-%d")
+    kept = {k: v for k, v in seen.items() if _seen_date(v) >= cut}
+    f = seen_path()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(kept, ensure_ascii=False, indent=1, sort_keys=True),
+                 encoding="utf-8")
+    return f
+
+
+def _seen_date(value) -> str:
+    return value.get("date", "") if isinstance(value, dict) else str(value)
+
+
+def seen_key(article) -> str:
+    """제목에서 기호를 걷어낸 것을 지문으로 쓴다."""
+    import re as _re
+    return _re.sub(r"[^가-힣a-z0-9]", "", (article.title or "").lower())[:80]
+
+
+def remember(seen: Dict[str, Any], article, day: str) -> None:
+    """보낸 것을 기록한다. 제목도 함께 남겨 다음에 같은 사건을 알아본다."""
+    seen[seen_key(article)] = {"date": day, "title": article.title or ""}
+
+
+def already_sent(seen: Dict[str, Any], article, overlap: int = 2) -> bool:
+    """이미 보낸 소식인지 본다.
+
+    지문이 같으면 당연히 같은 것이고, 지문이 달라도 뜻을 지닌 낱말이 겹치면
+    같은 사건으로 본다. 실측: 「경찰청 수사자료 분석 솔루션」 을 여덟 매체가
+    제각각 제목으로 써서, 지문만으로는 이튿날 또 나갔다.
+    """
+    from .scoring import _shared, _tokens
+
+    if seen_key(article) in seen:
+        return True
+    mine = _tokens(article.title or "")
+    if not mine:
+        return False
+    for value in seen.values():
+        title = value.get("title", "") if isinstance(value, dict) else ""
+        if title and _shared(mine, _tokens(title)) >= overlap:
+            return True
+    return False

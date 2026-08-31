@@ -120,6 +120,29 @@ def priority_topic(cluster: Cluster, ontology: Dict[str, Any]) -> tuple:
     return best, name
 
 
+# 숫자로만 된 낱말은 아무 데나 걸린다. 실측: 「교수 119명」 이 소방청의 '119' 에
+# 걸려 대학 교육 기사가 유사기관 관련도를 받았다. 숫자 낱말은 앞뒤를 따진다.
+_COUNTER = "명개건원년월일차호배％%".replace("%", "")
+
+
+def _kw_hit(needle: str, hay: str) -> bool:
+    if not needle:
+        return False
+    if not needle.isdigit():
+        return needle in hay
+    start = 0
+    while True:
+        i = hay.find(needle, start)
+        if i < 0:
+            return False
+        before = hay[i - 1] if i else ""
+        after = hay[i + len(needle)] if i + len(needle) < len(hay) else ""
+        # 앞뒤가 숫자면 다른 수의 일부, 뒤가 단위면 개수를 센 것이다
+        if not (before.isdigit() or after.isdigit() or after in _COUNTER):
+            return True
+        start = i + 1
+
+
 def work_relevance(cluster: Cluster, ontology: Dict[str, Any]) -> tuple:
     """우리청이 이걸 쓸 자리가 있는지를 본다.
 
@@ -148,8 +171,8 @@ def work_relevance(cluster: Cluster, ontology: Dict[str, Any]) -> tuple:
         context = group.get("context")
         if context and not any(str(c).lower() in tl or str(c).lower() in bl for c in context):
             continue
-        in_title = any(str(k).lower() in tl for k in group.get("keywords", []))
-        in_body = any(str(k).lower() in bl for k in group.get("keywords", []))
+        in_title = any(_kw_hit(str(k).lower(), tl) for k in group.get("keywords", []))
+        in_body = any(_kw_hit(str(k).lower(), bl) for k in group.get("keywords", []))
         if in_title:
             found.append((weight, name))
         elif in_body:
@@ -698,3 +721,55 @@ def tech_keywords(clusters: List[Cluster], cfg: Config, limit: int = 5) -> List[
         if len(out) >= limit:
             break
     return out
+
+
+# 같은 사건을 여러 매체가 제각각 제목으로 쓰면 제목 유사도로는 안 묶인다.
+# 실측: 「경찰청 수사자료 분석 솔루션」 건이 8개 클러스터로 쪼개져 상위를
+# 도배했다. 제목쌍 유사도는 0.21~0.28 이라 임계값을 낮추면(0.35) 다른 것까지
+# 뭉개진다(클러스터 167→95). 그래서 묶는 대신 고를 때 걸러낸다.
+_STOP = {
+    "인공지능", "ai", "생성형", "기반", "활용", "도입", "개발", "완료", "추진",
+    "공개", "발표", "운영", "지원", "확대", "구축", "시스템", "서비스", "기술",
+    "위한", "통해", "대한", "관련", "이번", "올해", "전국", "국내", "최초",
+}
+
+
+def _tokens(text: str) -> set:
+    """제목에서 뜻을 지닌 낱말만 남긴다."""
+    words = re.findall(r"[가-힣A-Za-z0-9]{2,}", (text or "").lower())
+    return {w for w in words if w not in _STOP and len(w) >= 2}
+
+
+def diversify(clusters: List[Cluster], take: int, overlap: int = 2) -> List[Cluster]:
+    """점수 순으로 훑되, 이미 고른 것과 같은 사건으로 보이면 건너뛴다.
+
+    뜻을 지닌 낱말이 overlap 개 이상 겹치면 같은 사건으로 본다.
+    한 사건을 여러 매체가 다뤘다는 사실은 이미 매체 수로 점수에 반영돼 있으므로,
+    목록에까지 여러 번 실을 이유가 없다.
+    """
+    picked: List[Cluster] = []
+    marks: List[set] = []
+    for c in clusters:
+        toks = _tokens(c.lead.title)
+        if any(_shared(toks, m) >= overlap for m in marks):
+            continue
+        picked.append(c)
+        marks.append(toks)
+        if len(picked) >= take:
+            break
+    return picked
+
+
+def _shared(left: set, right: set) -> int:
+    """겹치는 낱말 수. 한국어는 낱말이 붙어 늘어나므로 포함 관계도 센다.
+
+    '경찰' 과 '경찰청', '수사' 와 '수사자료' 는 같은 것을 가리킨다.
+    정확히 같은 낱말만 세면 같은 사건이 서로 다른 것으로 보인다.
+    """
+    n = 0
+    for a in left:
+        for b in right:
+            if a == b or (len(a) >= 2 and len(b) >= 2 and (a in b or b in a)):
+                n += 1
+                break
+    return n

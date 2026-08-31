@@ -13,7 +13,12 @@ from .gov import (
     ManualCollector,
     SeoulAiCollector,
 )
-from .news import ItNewsMoaCollector, RssCollector, ZdnetCollector
+from .news import (
+    GoogleNewsCollector,
+    ItNewsMoaCollector,
+    RssCollector,
+    ZdnetCollector,
+)
 
 REGISTRY: Dict[str, Type[Collector]] = {
     c.name: c
@@ -21,6 +26,7 @@ REGISTRY: Dict[str, Type[Collector]] = {
         RssCollector,
         ZdnetCollector,
         ItNewsMoaCollector,
+        GoogleNewsCollector,
         KoreaKrListCollector,
         KoreaKrSearchCollector,
         GovBoardCollector,

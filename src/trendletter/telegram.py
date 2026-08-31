@@ -143,7 +143,10 @@ def daily_text(clusters, collected: int, day) -> str:
         gist = _gist(a)
         lines.append("%s %s" % (MARKS[i] if i < len(MARKS) else "\u25aa\ufe0f",
                                 _clip(a.title, 60)))
-        lines.append("   %s%s" % (a.source_name, " · " + when if when else ""))
+        # 구글 뉴스로 들어온 건 실제 매체명이 raw.dept 에 있다.
+        # '뉴스 검색' 보다 '중앙일보' 가 읽는 사람에게 쓸모 있다.
+        where = (a.raw.get("dept") or "").strip() or a.source_name
+        lines.append("   %s%s" % (where, " · " + when if when else ""))
         if gist:
             lines.append("   %s" % gist)
         if a.url:

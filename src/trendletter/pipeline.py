@@ -246,7 +246,9 @@ def enrich_bodies(clusters: List[Cluster],
                     seoul_url, [("hmpg_mng_no", mng), ("pst_no", pst)]))
                 text = " ".join((data.get("summary") or "").split())
             else:
-                if not a.url:
+                # 구글 뉴스 주소는 자바스크립트로 넘어가므로 서버에서 원문이
+                # 안 열린다. 긁으면 구글 페이지가 통째로 들어온다.
+                if not a.url or "news.google.com" in a.url:
                     return 0
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(fetcher.get(a.url), "lxml")

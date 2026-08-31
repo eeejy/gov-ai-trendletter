@@ -148,7 +148,7 @@ def cmd_daily(args) -> int:
     사람 검토 없이 나가므로, 요약을 지어내지 않는 것이 안전 설계다.
     """
     from trendletter import telegram as tg
-    from trendletter.scoring import select
+    from trendletter.scoring import diversify
 
     cfg = load()
     days = args.days or 1
@@ -165,10 +165,19 @@ def cmd_daily(args) -> int:
     pipeline.enrich_bodies(clusters, progress=_say)
     clusters = pipeline.build_clusters(articles, cfg)
 
-    picked = [c for c in clusters if c.score >= floor][:top]
-    _say("클러스터 %d개 · %.1f점 이상 %d건 → 상위 %d건"
-         % (len(clusters), floor, sum(1 for c in clusters if c.score >= floor),
-            len(picked)))
+    ranked = [c for c in clusters if c.score >= floor]
+
+    # 어제 이미 보낸 것은 빼고 본다. 같은 소식이 이틀 연속 오면 신뢰를 잃는다.
+    seen = {} if args.ignore_seen else store.load_seen()
+    fresh = [c for c in ranked if not store.already_sent(seen, c.lead)]
+    dropped = len(ranked) - len(fresh)
+
+    # 한 사건을 여러 매체가 제각각 제목으로 쓰면 제목 유사도로 안 묶인다.
+    # 고를 때 걸러 같은 사건이 목록을 도배하지 않게 한다.
+    picked = diversify(fresh, top)
+
+    _say("클러스터 %d개 · %.1f점 이상 %d건 · 이미 보낸 것 %d건 제외 → %d건"
+         % (len(clusters), floor, len(ranked), dropped, len(picked)))
 
     text = tg.daily_text(picked, len(articles), started.date())
     _say("\n" + text + "\n")
@@ -183,6 +192,13 @@ def cmd_daily(args) -> int:
         _say("발송 실패: %s" % exc)
         return 1
     _say("발송 완료")
+
+    # 보낸 것만 기록한다. 미발송으로 본 것은 남기지 않는다.
+    today = datetime.now().strftime("%Y-%m-%d")
+    for c in picked:
+        store.remember(seen, c.lead, today)
+    path = store.save_seen(seen)
+    _say("발송 기록 %d건 → %s" % (len(seen), path))
     return 0
 
 
@@ -505,6 +521,8 @@ def main(argv=None) -> int:
     dl.add_argument("--min-score", type=float, help="이 점수 미만은 싣지 않음 (기본 8.0)")
     dl.add_argument("--send", action="store_true", help="실제로 발송 (없으면 미리보기)")
     dl.add_argument("--to-admin", action="store_true", help="채널 대신 담당자에게만")
+    dl.add_argument("--ignore-seen", action="store_true",
+                    help="이미 보낸 것도 다시 넣기 (시험용)")
     dl.set_defaults(func=cmd_daily)
 
     w = sub.add_parser("weekly", help="예약 실행용 — 초안까지만 만들고 담당자에게 알림")
