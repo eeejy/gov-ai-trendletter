@@ -65,7 +65,8 @@ def collect(
             say("  · %-22s %3d건" % (source["name"], len(got)))
 
     LAST_HEALTH[:] = health
-    for line in health_warnings(health):
+    span = max(1, round((datetime.now() - since).total_seconds() / 86400))
+    for line in health_warnings(health, days=span):
         say("  ! " + line)
     return articles
 
@@ -74,29 +75,38 @@ def collect(
 LAST_HEALTH: List[dict] = []
 
 
-def health_warnings(health: List[dict]) -> List[str]:
+def health_warnings(health: List[dict], days: int = 7) -> List[str]:
     """담당자가 손을 써야 하는 상황만 골라 말한다.
 
     수집기는 사이트 구조가 바뀌면 예외 없이 0건을 돌려준다. 그대로 두면
     몇 주 동안 특정 기관 소식이 통째로 빠진 채 발행된다.
+
+    다만 기관 게시판은 매일 올라오지 않는다. 실측: 하루치로 보면 국가AI전략위·
+    해양경찰청·해양수산부·서울 AI 플랫폼이 모두 0건이지만, 이레치로 보면
+    6·1·3·60건이다. 짧은 기간에는 0건을 이상 징후로 보지 않는다.
     """
     if not health:
         return ["수집원이 하나도 실행되지 않았습니다"]
-    dead = [h["name"] for h in health if h["n"] == 0]
     broken = [h for h in health if h["n"] < 0]
     total = sum(h["n"] for h in health if h["n"] > 0)
     out = []
     if broken:
         out.append("오류로 멈춘 수집원 %d개: %s"
                    % (len(broken), ", ".join(h["name"] for h in broken)))
-    if dead:
-        out.append("0건으로 끝난 수집원 %d개: %s  (사이트 구조가 바뀌었을 수 있습니다 — "
-                   "python run.py sources 로 확인하세요)" % (len(dead), ", ".join(dead)))
-    if len(dead) + len(broken) >= max(2, len(health) // 3):
-        out.append("수집원 %d개 중 %d개가 아무것도 가져오지 못했습니다. 발행 전에 점검하세요."
-                   % (len(health), len(dead) + len(broken)))
-    if total < 30:
-        out.append("전체 수집량이 %d건뿐입니다. 평소(150건 안팎)보다 크게 적습니다." % total)
+
+    # 기관 게시판이 며칠씩 조용한 것은 흔하다. 사흘 이상 볼 때만 0건을 따진다.
+    if days >= 3:
+        dead = [h["name"] for h in health if h["n"] == 0]
+        if dead:
+            out.append("0건으로 끝난 수집원 %d개: %s  (사이트 구조가 바뀌었을 수 있습니다 — "
+                       "python run.py sources 로 확인하세요)" % (len(dead), ", ".join(dead)))
+        if len(dead) + len(broken) >= max(2, len(health) // 3):
+            out.append("수집원 %d개 중 %d개가 아무것도 가져오지 못했습니다. 발행 전에 점검하세요."
+                       % (len(health), len(dead) + len(broken)))
+        if total < 30:
+            out.append("전체 수집량이 %d건뿐입니다. 평소(150건 안팎)보다 크게 적습니다." % total)
+    elif total < 5:
+        out.append("전체 수집량이 %d건뿐입니다. 하루치라도 이보다는 나옵니다." % total)
     return out
 
 
