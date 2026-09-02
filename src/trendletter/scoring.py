@@ -284,9 +284,17 @@ def score(cluster: Cluster, cfg: Config, heat: Dict[str, set] = None) -> Cluster
     elif _LOCAL_PEER.search(title_) and "해경" not in title_:
         reasons["local"] = -3.5
 
-    # 7) 우리 기관 관련 수집원(해양경찰청·해양수산부)은 소스 기준으로 가산한다
+    # 7) 우리 기관이 직접 발표한 자료에는 가산하지 않는다.
+    #
+    #    동향지는 담당자가 '모르는 것'을 알려 주는 물건이다. 우리 청 보도자료는
+    #    이미 아는 내용일 때가 많다. 지난 11개 호에서 실린 내부 소식(19%)도
+    #    해커톤·경진대회처럼 수집기가 잡을 수 없는 팀 업무여서, 담당자가
+    #    편집기에서 직접 넣은 것이었다. 점수로 밀어 올릴 대상이 아니다.
+    #
+    #    다만 후보에서 빼지는 않는다(compose.must_include_roles). 우리 청
+    #    소식이 있었다는 사실 자체는 담당자가 보고 판단해야 한다.
     roles = {a.raw.get("role") for a in cluster.articles}
-    reasons["must"] = 4.0 if "must" in roles else 0.0
+    reasons["must"] = 0.0
 
     # 8) 최우선 주제(국가AI전략위)는 내용 기준으로 가산한다.
     #    범정부 AI 정책의 최상위 방향이라 어느 매체로 들어오든 우대한다.
