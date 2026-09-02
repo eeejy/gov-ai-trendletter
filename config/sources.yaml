@@ -9,23 +9,13 @@
 sources:
 
   # ---------------------------------------------------------------- 정책
-  - id: national_ai_committee
-    name: 국가AI전략위·범정부 AI정책
-    track: policy
-    # 전략위 원문이 아니라 정책브리핑 검색 결과다.
-    # 전략위 자료 우대는 수집원이 아니라 내용으로 판정한다
-    # (config/ontology.yaml 의 priority_topics — 제목 언급 시 5.0점).
-    role: primary
-    collector: koreakr_search
-    enabled: true
-    params:
-      # 2026-08-30: 부처 지정 없이 검색하니 36건 중 9건만 관련 있었다(25%).
-      # 전략위 자료는 과기정통부·국무조정실 명의로 나가므로 그 두 곳으로 좁힌다.
-      depts: [과학기술정보통신부, 국무조정실, 기획예산처]
-      queries: ["국가AI전략위원회", "AI 대전환", "공공AX"]
-    # 검색 결과라 정확도가 낮다. 전략위 우대는 내용 기준 priority 5.0 으로 따로 준다
-    weight: 1.2
-
+  # 2026-09-02 삭제: national_ai_committee (정책브리핑 검색)
+  #   korea.kr 검색이 제목과 무관한 결과를 준다. "국가AI전략위원회" 로 검색해도
+  #   규제자유특구·해상풍력·국토대전환 보도자료가 돌아왔다. 7일치 8건 중
+  #   AI 관문을 통과한 것이 0건이었다.
+  #   전략위 자료는 언론(ZDNet·AI타임스)으로 들어오고, 우대는 수집원이 아니라
+  #   내용으로 판정하므로(ontology.yaml priority_topics, 제목 언급 시 +5.0)
+  #   감시에 구멍이 나지 않는다. 실제로 이번 주도 ZDNet 건이 +5.0 을 받았다.
   - id: kcg
     name: 해양경찰청 보도자료
     track: policy
