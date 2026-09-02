@@ -63,6 +63,34 @@ _NOT_ISSUE = re.compile(
 _EVENT_PROMO = re.compile(r"특강|세미나|웨비나|강연|설명회|간담회|즐겨요|보러오세요|시청")
 _JOINABLE = re.compile(r"경진대회|공모전|해커톤|공모|모집|접수|참가|아이디어")
 
+# 업체가 사업을 따냈다는 소식. 우리 기관 이름이 스치듯 들어가지만
+# 담당자가 얻을 것이 없다. 실측: 「스텔라비전, 해경 항공 AI 개발 참여」가 2위였다.
+# 발주·계약 자체가 정책 변화인 경우는 기관이 주어로 나오므로 아래에서 걸러진다.
+# 해외 기관 소식. 유사기관 낱말('경찰')에 걸려 올라오지만 우리 제도와 무관하다.
+# 실측: 「日 경찰, 웨어러블 카메라 2천대 배치」가 5위, 「美 경찰 차량 추적」이 12위였다.
+_OVERSEAS = re.compile(
+    r"(^|[\s\[(])(日|美|中|英|獨|佛|일본|미국|중국|영국|독일|프랑스|호주|캐나다|"
+    r"싱가포르|대만|인도|베트남|EU|유럽연합)\s*(경찰|소방|정부|당국|내무)"
+)
+# 지방 조직 소식. 우리 유사기관의 지역 지점 이야기는 범정부 동향이 아니다.
+# 해경은 우리 청이므로 뺀다 — '부산해경 드론 순찰' 같은 건 살려야 한다.
+_LOCAL_PEER = re.compile(
+    r"(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|"
+    r"경북|경남|제주)\s*(자치)?(경찰|소방|지방경찰|경찰청|소방본부|소방서)"
+)
+
+_VENDOR_DEAL = re.compile(
+    r"(개발\s*참여|사업자로?\s*선정|주관기관\s*선정|수주|공급\s*계약|"
+    r"구축\s*계약|납품|우선협상|컨소시엄\s*구성|출사표)"
+)
+# 제목이 기관으로 시작하면 기관 발표다. 업체가 주어면 홍보다.
+_AGENCY_SUBJECT = re.compile(
+    r"^\s*(해양경찰청|해양경찰|해경청|해양수산부|해수부|경찰청|소방청|"
+    r"과학기술정보통신부|과기정통부|행정안전부|행안부|국무조정실|"
+    r"국가AI전략위|국가인공지능전략위|개인정보보호위|감사원|국방부|관세청|"
+    r"산림청|기상청|정부|대통령실|청와대|국회)"
+)
+
 
 def is_ai_related(cluster: Cluster, cfg: Config) -> bool:
     """AI 정보동향지이므로 AI가 주제가 아닌 자료는 후보에서 뺀다.
@@ -122,7 +150,9 @@ def priority_topic(cluster: Cluster, ontology: Dict[str, Any]) -> tuple:
 
 # 숫자로만 된 낱말은 아무 데나 걸린다. 실측: 「교수 119명」 이 소방청의 '119' 에
 # 걸려 대학 교육 기사가 유사기관 관련도를 받았다. 숫자 낱말은 앞뒤를 따진다.
-_COUNTER = "명개건원년월일차호배％%".replace("%", "")
+# 실측: 「갤럭시 북6, 119만원부터」의 119 가 소방청으로 잡혀 노트북 기사
+# 네 건이 10~13위를 차지했다. 수량·금액 단위를 넓게 잡는다.
+_COUNTER = "명개건원년월일차호배만천억조원위대장권부점"
 
 
 def _kw_hit(needle: str, hay: str) -> bool:
@@ -242,6 +272,18 @@ def score(cluster: Cluster, cfg: Config, heat: Dict[str, set] = None) -> Cluster
     if _EVENT_PROMO.search(title_) and not _JOINABLE.search(title_):
         reasons["promo"] = -2.5
 
+    # 6-3) 업체가 사업을 따냈다는 소식은 기관이 주어일 때만 남긴다.
+    #      우리 기관 이름이 들어갔다고 업무에 쓸 것이 생기지는 않는다.
+    if _VENDOR_DEAL.search(title_) and not _AGENCY_SUBJECT.match(title_):
+        reasons["vendor"] = -6.0
+
+    # 6-4) 해외 기관·지방 조직 소식은 유사기관 가산을 되돌린다.
+    #      '경찰' 이라는 낱말만으로 우리 제도와 이어지지는 않는다.
+    if _OVERSEAS.search(title_):
+        reasons["overseas"] = -5.0
+    elif _LOCAL_PEER.search(title_) and "해경" not in title_:
+        reasons["local"] = -3.5
+
     # 7) 우리 기관 관련 수집원(해양경찰청·해양수산부)은 소스 기준으로 가산한다
     roles = {a.raw.get("role") for a in cluster.articles}
     reasons["must"] = 4.0 if "must" in roles else 0.0
@@ -314,9 +356,15 @@ def is_tool_news(cluster: Cluster) -> bool:
 
 
 def select(clusters: List[Cluster], cfg: Config) -> List[Cluster]:
-    """트랙별 최소·최대 건수를 지키면서 전체 상한까지 고른다."""
+    """트랙별 최소·최대 건수를 지키면서 전체 상한까지 고른다.
+
+    같은 사건을 여러 매체가 제각각 제목으로 쓴 것은 먼저 걸러 낸다.
+    실측: 「경찰청 수사자료 분석 솔루션」이 2·3·5위를 차지했다.
+    """
     quota = cfg.get("compose.quota", {}) or {}
     total_max = int(cfg.get("compose.total_max", 6))
+    if cfg.get("compose.drop_same_event", True):
+        clusters = diversify(clusters, take=len(clusters))
 
     chosen: List[Cluster] = []
     used = set()
@@ -521,6 +569,12 @@ def explain(cluster: Cluster, cfg: Config, rank_: int = 0, total: int = 0) -> Li
         if peak:
             out.append("개발자 반응 지표 상위 (%s)" % format(peak, ","))
 
+    if r.get("vendor", 0):
+        out.append("업체 수주 소식 (감점)")
+    if r.get("overseas", 0):
+        out.append("해외 기관 소식 (감점)")
+    if r.get("local", 0):
+        out.append("지방 조직 소식 (감점)")
     if r.get("promo", 0):
         out.append("행사 안내 성격 (참고용)")
 
@@ -666,7 +720,15 @@ _TOO_BROAD = {
     "로봇", "드론", "클라우드", "데이터센터", "반도체", "gpu", "빅데이터",
     # 본문까지 세면서 걸려든 것들. 달·요일 약어는 제품 이름이 아니다.
     "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    "august", "january", "february", "october", "november", "december",
     "ai 에이전트", "에이전트", "생성형 ai", "llm", "환각", "멀티모달",
+    # 핫이슈 자리는 '이게 뭔지 조사해 정리할' 대상이다. 이미 다 아는 이름은
+    # 설명할 것이 없다. 「앤트로픽 이용료 인하」·「일상으로 들어온 챗GPT」가
+    # 그래서 뽑혔었다. 새로 뜬 이름(GLM·Ox 알파 같은)에 자리를 내준다.
+    "claude", "클로드", "gpt", "chatgpt", "챗gpt", "openai", "오픈ai",
+    "gemini", "제미나이", "구글", "네이버", "카카오", "삼성", "마이크로소프트",
+    "앤트로픽", "anthropic", "copilot", "코파일럿", "nvidia", "엔비디아",
+    "비전", "모델", "플랫폼", "서비스", "시스템", "솔루션", "기술", "학습",
 }
 
 
@@ -721,13 +783,30 @@ def tech_keywords(clusters: List[Cluster], cfg: Config, limit: int = 5) -> List[
             display.setdefault(canon, _TERM_DISPLAY.get(canon, canon))
 
     out = []
-    for key, n in count.most_common(limit * 4):
+    for key, n in count.most_common(limit * 6):
         if n < 2 or key.lower() in _TOO_BROAD:
+            continue
+        # 핫이슈 자리는 '이게 뭔지 조사해 설명할' 대상이다. 제품·모델 이름이라야
+        # 설명할 것이 있다. 순한글 일반명사(유출·비전·환각)를 낱말 목록으로
+        # 하나씩 막는 것은 끝이 없어, 이름처럼 생겼는지로 가른다.
+        if not _looks_like_product(key):
             continue
         out.append({"text": display.get(key, key), "count": n, "key": key.lower()})
         if len(out) >= limit:
             break
     return out
+
+
+def _looks_like_product(term: str) -> bool:
+    """제품·모델 이름처럼 생겼나.
+
+    GLM·Kimi·GPT-5·Qwen3 처럼 로마자나 숫자를 품는다. 우리말 이름은
+    '지푸AI'·'하이퍼클로바' 처럼 로마자가 섞이거나 네 글자를 넘는 고유명사다.
+    '유출'·'비전'·'환각' 같은 두세 글자 일반명사는 걸러진다.
+    """
+    if re.search(r"[A-Za-z0-9]", term):
+        return True
+    return len(term) >= 5
 
 
 # 같은 사건을 여러 매체가 제각각 제목으로 쓰면 제목 유사도로는 안 묶인다.

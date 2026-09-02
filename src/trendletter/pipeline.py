@@ -829,13 +829,22 @@ def add_trend_items(issue: Issue, topics: List[Dict[str, Any]],
         return issue
 
     say("  · 이번 주 핫이슈 %d건 조사·종합 중…" % len(topics))
+    # 한 건에 60초쯤 걸린다. 두 건을 하나씩 하면 그대로 두 배가 된다.
     made = []
-    for tp in topics:
-        item = make_trend_item(tp, 0, progress=say)
-        if item:
-            item.locked = True     # polish() 가 다시 쓰지 않도록
-            made.append(item)
-            say("    ◆ %s — %s" % (tp["term"], item.title[:44]))
+    with ThreadPoolExecutor(max_workers=min(3, len(topics))) as pool:
+        futures = {pool.submit(make_trend_item, tp, 0, progress=None): tp
+                   for tp in topics}
+        for fut in as_completed(futures):
+            tp = futures[fut]
+            try:
+                item = fut.result()
+            except Exception as exc:  # noqa: BLE001 - 한 건 실패가 전체를 막지 않는다
+                say("    ! %s 종합 실패: %s" % (tp["term"], str(exc)[:70]))
+                continue
+            if item:
+                item.locked = True     # polish() 가 다시 쓰지 않도록
+                made.append(item)
+                say("    ◆ %s — %s" % (tp["term"], item.title[:44]))
     if not made:
         return issue
 
