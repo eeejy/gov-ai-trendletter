@@ -214,3 +214,25 @@ def already_sent(seen: Dict[str, Any], article, overlap: int = 2) -> bool:
         if title and _shared(mine, _tokens(title)) >= overlap:
             return True
     return False
+
+
+def clear_draft(issue: Issue) -> bool:
+    """작업 중인 초안을 비운다. 내용은 사본으로 남긴다.
+
+    파일을 지우지 않고 **빈 초안으로 덮어쓴다.** 지우면 latest_draft() 가
+    지지난 회차 파일을 집어 올려 엉뚱한 내용이 되살아난다.
+    비운 상태를 파일로 분명히 남겨 두는 편이 안전하다.
+
+    되돌리기 목록에 직전 내용이 그대로 있으므로 잘못 눌러도 복구된다.
+    """
+    path = draft_path(issue)
+    had = path.exists()
+    if had:
+        _backup(path)
+    blank = Issue(
+        year=issue.year, number=issue.number,
+        published_on=issue.published_on,
+        period_from=issue.period_from, period_to=issue.period_to,
+    )
+    _dump(path, blank.to_dict())
+    return had

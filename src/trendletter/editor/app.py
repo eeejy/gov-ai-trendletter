@@ -19,7 +19,7 @@ import time
 import webbrowser
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from flask import Flask, jsonify, render_template, request, send_file
 
@@ -311,9 +311,41 @@ def api_health():
     })
 
 
+def _blank(number: Optional[int] = None) -> Issue:
+    """항목이 하나도 없는 빈 회차."""
+    today = date.today()
+    cfg = load()
+    year = int(cfg.get("issue.year", today.year))
+    days = int(cfg.get("collect.days", 7))
+    return Issue(
+        year=year,
+        number=int(number) if number else store.next_issue_number(year),
+        published_on=today,
+        period_from=today - timedelta(days=days),
+        period_to=today,
+    )
+
+
+@app.post("/api/reset")
+def api_reset():
+    """새 호를 시작한다. 작업 중이던 초안은 사본으로 남긴다.
+
+    초안이 늘 남아 있으면 빈 화면을 볼 방법이 없다. 새 회차를 시작할 때도,
+    처음 쓰는 사람에게 보여 줄 때도 필요하다.
+    호수는 그대로 둔다 — 같은 회차를 다시 만드는 경우가 대부분이다.
+    """
+    body = request.get_json(silent=True) or {}
+    cur = _current()
+    keep = cur.number if body.get("keep_number", True) else None
+    moved = store.clear_draft(cur)
+    fresh = _blank(keep)
+    return jsonify({"ok": True, "backed_up": moved, "issue": fresh.to_dict()})
+
+
 @app.get("/api/backups")
 def api_backups():
     """자동 저장 직전 사본 목록. 새 것부터."""
+    # 초기화 직후에는 초안 파일이 없다. 그래도 사본 목록은 보여야 한다.
     return jsonify({"items": store.backups(_current())})
 
 
