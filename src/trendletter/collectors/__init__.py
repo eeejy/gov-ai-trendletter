@@ -5,12 +5,11 @@ from __future__ import annotations
 from typing import Any, Dict, List, Type
 
 from .base import Collector
-from .dev import GithubCollector, HackerNewsCollector, OpenRouterCollector, RedditCollector
+from .dev import GithubCollector, HackerNewsCollector, RedditCollector
 from .gov import (
     GovBoardCollector,
     KoreaKrListCollector,
     KoreaKrSearchCollector,
-    ManualCollector,
     SeoulAiCollector,
 )
 from .news import (
@@ -31,11 +30,9 @@ REGISTRY: Dict[str, Type[Collector]] = {
         KoreaKrSearchCollector,
         GovBoardCollector,
         SeoulAiCollector,
-        ManualCollector,
         HackerNewsCollector,
         RedditCollector,
         GithubCollector,
-        OpenRouterCollector,
     )
 }
 

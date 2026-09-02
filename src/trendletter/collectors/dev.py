@@ -168,12 +168,3 @@ class GithubCollector(Collector):
                 )
             )
         return out[:limit]
-
-
-class OpenRouterCollector(Collector):
-    """OpenRouter 공개 랭킹. 엔드포인트 확인 후 활성화한다(docs/sources.md)."""
-
-    name = "openrouter"
-
-    def collect(self, since: datetime, limit: int) -> List[Article]:
-        return []

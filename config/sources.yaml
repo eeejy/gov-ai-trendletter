@@ -202,24 +202,6 @@ sources:
     # 검증용
     weight: 0.8
 
-  - id: openrouter
-    name: OpenRouter 사용량 검증
-    track: dev
-    role: verify
-    collector: openrouter
-    enabled: false           # 공개 랭킹 엔드포인트 확인 후 활성화
-    params: {}
-    weight: 0.9
-
-  - id: threads
-    name: Threads 국내 개발자 반응
-    track: dev
-    role: discover
-    collector: manual
-    enabled: false           # 수동 보충 전용
-    params: {}
-    weight: 0.6
-
   - id: google_news_kcg
     # 이름에 기관명을 넣지 않는다. work_relevance 가 수집원 이름도 함께 보므로
     # 이름에 '해양경찰' 이 들어가면 이 수집원의 모든 기사가 직접 관련도를 받는다.

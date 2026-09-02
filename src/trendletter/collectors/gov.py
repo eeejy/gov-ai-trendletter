@@ -308,12 +308,3 @@ class SeoulAiCollector(Collector):
             text = clean((data.get("summary") or "").replace("\n", " "))
             if text:
                 art.summary = text[:700]
-
-
-class ManualCollector(Collector):
-    """Threads 등 수동 보충 소스. 편집기에서 사람이 직접 추가한다."""
-
-    name = "manual"
-
-    def collect(self, since: datetime, limit: int) -> List[Article]:
-        return []

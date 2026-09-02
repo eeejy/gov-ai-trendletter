@@ -32,8 +32,6 @@ HOW = {
     "hackernews": "Algolia API",
     "reddit": "Atom 피드 (JSON 차단)",
     "github": "GitHub Search API",
-    "openrouter": "미구현",
-    "manual": "수동 입력 전용",
 }
 
 raw_path = sorted(Path("data/raw").glob("collect-*.json"))
