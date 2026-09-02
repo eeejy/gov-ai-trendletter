@@ -308,7 +308,15 @@ def llm_rerank(clusters: List[Cluster], cfg: Config,
     say = progress or (lambda m: None)
     if not llm.available():
         return None
-    head = clusters[:pool]
+
+    # 규칙 점수가 낮아도 값어치가 높은 자료가 있다. 실측: 최종 8건 중 3건이
+    # 41~53위에서 나왔다(행안부 AI 예산 1.5조, 조달청 기술평가 실증,
+    # 국무총리 주재 간담회). 규칙 점수와 인사이트 값어치의 상관이 약하므로
+    # 후보를 넉넉히 넘긴다. 다만 관문 언저리 잡음까지 넣지는 않는다.
+    floor = float(cfg.get("compose.rerank_min_score", 8.0))
+    head = [c for c in clusters[:pool] if c.score >= floor]
+    if len(head) < 8:
+        head = clusters[: max(8, min(pool, len(clusters)))]
     if len(head) < 8:
         return None
 
