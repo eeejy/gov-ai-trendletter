@@ -236,11 +236,6 @@ def work_relevance(cluster: Cluster, ontology: Dict[str, Any]) -> tuple:
     return min(score, 12.0), hits
 
 
-# 이전 이름을 쓰는 곳이 있어 남겨 둔다
-def maritime_relevance(cluster: Cluster, ontology: Dict[str, Any]) -> float:
-    return work_relevance(cluster, ontology)[0]
-
-
 def score(cluster: Cluster, cfg: Config, heat: Dict[str, set] = None) -> Cluster:
     reasons: Dict[str, float] = {}
 
@@ -252,9 +247,10 @@ def score(cluster: Cluster, cfg: Config, heat: Dict[str, set] = None) -> Cluster
     outlets = len(cluster.outlets)
     reasons["outlets"] = min(outlets - 1, 3) * 1.5
 
-    # 3) AI 중심성 — 관문 역할이 주된 목적이라 순위 기여는 절반만 반영한다
+    # 3) 분야 중심성 — 관문 역할이 주된 목적이라 순위 기여는 절반만 반영한다
     #    (상위권 값이 4~9에 몰려 변별력이 낮았다)
-    reasons["ai_focus"] = ai_focus(cluster, cfg) * 0.5
+    #    reasons 의 키는 지난 발행본 감사 자료와 맞춰야 해서 그대로 둔다.
+    reasons["ai_focus"] = topic_focus(cluster, cfg) * 0.5
 
     # 4) 업무 관련도 — 동향지의 존재 이유이므로 크게 본다
     cluster.onto = tag(cluster, cfg.ontology)
