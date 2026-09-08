@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>동향지 설정</title>
+<style>
+ :root{--bg:#0d1117;--panel:#161b22;--line:#283040;--fg:#e6edf3;--sub:#8b98a8;
+       --accent:#4dabf7;--ok:#3fb950;--bad:#f85149;--warn:#d29922}
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--bg);color:var(--fg);
+   font:15px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}
+ header{position:sticky;top:0;z-index:20;background:var(--panel);
+   border-bottom:1px solid var(--line);padding:14px 22px;display:flex;
+   gap:12px;align-items:center;flex-wrap:wrap}
+ h1{font-size:16px;margin:0 auto 0 0;font-weight:700}
+ h2{font-size:15px;margin:0 0 4px}
+ button{background:#21262d;color:var(--fg);border:1px solid var(--line);
+   border-radius:7px;padding:8px 14px;font:inherit;cursor:pointer}
+ button:hover{background:#2d333b}
+ button.primary{background:var(--accent);color:#07111d;border-color:var(--accent);font-weight:700}
+ button.sm{padding:5px 10px;font-size:13px}
+ button.danger{border-color:#5b2b2b;color:#ffa198}
+ input,select,textarea{background:#0b0f14;color:var(--fg);border:1px solid var(--line);
+   border-radius:7px;padding:8px 10px;font:inherit;width:100%}
+ textarea{resize:vertical;min-height:78px;font-size:13px;line-height:1.6}
+ input[type=number]{width:90px}
+ input[type=color]{width:44px;padding:2px;height:34px}
+ main{max-width:1000px;margin:0 auto;padding:20px 22px 80px}
+ nav{position:sticky;top:59px;z-index:10;background:var(--bg);padding:10px 0 6px;
+   border-bottom:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap}
+ nav a{color:var(--sub);text-decoration:none;padding:5px 11px;border-radius:99px;
+   border:1px solid transparent;font-size:13px}
+ nav a:hover{border-color:var(--line);color:var(--fg)}
+ section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+   padding:20px;margin:16px 0}
+ .why{color:var(--sub);font-size:13px;margin:2px 0 14px}
+ .grid{display:grid;grid-template-columns:170px 1fr;gap:10px 14px;align-items:center}
+ .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+ .right{margin-left:auto}
+ table{width:100%;border-collapse:collapse;font-size:13px}
+ th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+ th{color:var(--sub);font-weight:600}
+ .msg{border-radius:8px;padding:10px 12px;margin-top:10px;font-size:13px;display:none}
+ .msg.ok{background:#0f2f18;border:1px solid #1f5c30;color:#7ee2a0;display:block}
+ .msg.bad{background:#3a1a1a;border:1px solid #6b2b2b;color:#ffa198;display:block}
+ .pill{display:inline-block;border:1px solid var(--line);border-radius:99px;
+   padding:2px 9px;font-size:12px;color:var(--sub)}
+ .pill.on{border-color:var(--ok);color:#7ee2a0}
+ .pill.off{border-color:#4a3b1a;color:#e3b341}
+ code{background:#0b0f14;padding:1px 5px;border-radius:4px;font-size:12px}
+</style></head><body>
+<header>
+  <h1>동향지 설정</h1>
+  <select id="profile" style="width:auto"></select>
+  <button class="sm" id="newprof">분야 새로 만들기</button>
+  <button class="primary" id="finish">설정 마치고 시작</button>
+</header>
+<main>
+<nav>
+  <a href="#org">① 기관</a><a href="#kw">② 키워드</a><a href="#tracks">③ 구성</a>
+  <a href="#sources">④ 수집원</a><a href="#rel">⑤ 관련도</a><a href="#model">⑥ 모델</a>
+</nav>
+
+<section id="org">
+  <h2>① 어느 기관의, 무엇에 대한 동향지인가</h2>
+  <div class="why">발행물 표지와 초안 문구에 그대로 들어갑니다.</div>
+  <div class="grid">
+    <label>기관 이름</label><input id="publisher" placeholder="예: 해양경찰청">
+    <label>부서</label><input id="team" placeholder="예: 인공지능전환팀">
+    <label>발행물 이름</label><input id="series" placeholder="예: AI 정보동향지">
+    <label>분야 이름</label><input id="pname" placeholder="예: AI 정보동향지">
+    <label>주제 한 낱말</label><input id="subject" placeholder="예: 인공지능 · 국제협력">
+  </div>
+  <div class="row" style="margin-top:14px"><button class="primary" data-save="org">저장</button></div>
+  <div class="msg" id="m-org"></div>
+</section>
+
+<section id="kw">
+  <h2>② 무엇을 이 분야 자료로 볼 것인가</h2>
+  <div class="why">
+    핵심어가 <b>제목</b>에 있으면 이 분야 기사로 봅니다. 주변어는 혼자서는 약합니다.
+    기관 게시판처럼 전체를 긁는 수집원이 있어 이 관문이 없으면 아무거나 다 들어옵니다.
+  </div>
+  <div class="grid">
+    <label>핵심어<br><span class="why">한 줄에 하나</span></label><textarea id="core"></textarea>
+    <label>주변어</label><textarea id="adjacent"></textarea>
+    <label>통과 점수</label>
+    <div class="row"><input type="number" id="min_focus" step="0.5" min="0">
+      <span class="why">낮출수록 많이 들어옵니다 (기본 3.5)</span></div>
+    <label>주변어 조건</label>
+    <div class="row"><label class="why"><input type="checkbox" id="ance" style="width:auto">
+      주변어는 본문에 핵심어가 함께 있을 때만 인정</label></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <button class="primary" data-save="keywords">저장</button>
+    <button id="kwtest">지난 수집본으로 몇 건 걸리는지 보기</button>
+  </div>
+  <div class="msg" id="m-kw"></div>
+</section>
+
+<section id="tracks">
+  <h2>③ 동향지를 어떻게 구성할 것인가</h2>
+  <div class="why">
+    트랙은 <b>어느 수집원에서 왔는가</b>로 나뉩니다. 각 트랙에서 몇 건씩 실을지 정합니다.
+  </div>
+  <table><thead><tr><th style="width:120px">키</th><th>표기</th><th>발행물 표기</th>
+    <th style="width:70px">최소</th><th style="width:70px">최대</th><th style="width:60px">색</th><th></th></tr></thead>
+    <tbody id="trackbody"></tbody></table>
+  <div class="row" style="margin-top:12px">
+    <button class="sm" id="addtrack">트랙 추가</button>
+    <div class="right row">
+      <label class="why">전체 최대</label><input type="number" id="total_max" min="1">
+      <label class="why"><input type="checkbox" id="llm_rerank" style="width:auto"> 모델이 다시 고르게</label>
+      <label class="why"><input type="checkbox" id="drop_same" style="width:auto"> 같은 사건 하나만</label>
+    </div>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="primary" data-save="tracks">저장</button></div>
+  <div class="msg" id="m-tracks"></div>
+</section>
+
+<section id="sources">
+  <h2>④ 어디서 모을 것인가</h2>
+  <div class="why">
+    <code>koreakr_search</code> 는 정책브리핑을 부처+검색어로, <code>google_news</code> 는
+    검색어로, <code>rss</code> 는 주소로 봅니다. 셋이면 웬만한 분야가 덮입니다.
+  </div>
+  <table><thead><tr><th style="width:52px">켬</th><th>이름</th><th style="width:130px">수집기</th>
+    <th style="width:110px">트랙</th><th style="width:80px">가중치</th><th>설정</th><th style="width:70px"></th></tr></thead>
+    <tbody id="srcbody"></tbody></table>
+  <div class="row" style="margin-top:12px">
+    <button class="sm" id="addsrc">수집원 추가</button>
+    <button class="primary right" data-save="sources">저장</button>
+  </div>
+  <div class="msg" id="m-sources"></div>
+</section>
+
+<section id="rel">
+  <h2>⑤ 무엇을 얼마나 중요하게 볼 것인가</h2>
+  <div class="why">
+    동향지 품질을 가장 크게 가르는 곳입니다. 가중치는 감으로 정하지 말고
+    <b>지난 발행본을 분석해</b> 실제 비중에 맞추는 것을 권합니다.
+    문맥 낱말을 적으면 그 말이 함께 있을 때만 그 그룹을 셉니다(일반어 오탐 방지).
+  </div>
+  <table><thead><tr><th style="width:130px">그룹</th><th style="width:80px">가중치</th>
+    <th>낱말 (쉼표 또는 줄바꿈)</th><th style="width:150px">문맥</th><th style="width:56px"></th></tr></thead>
+    <tbody id="relbody"></tbody></table>
+  <div class="row" style="margin-top:12px">
+    <button class="sm" id="addrel">그룹 추가</button>
+    <button class="primary right" data-save="relevance">저장</button>
+  </div>
+  <div class="msg" id="m-rel"></div>
+</section>
+
+<section id="model">
+  <h2>⑥ 어떤 모델로 초안을 쓸 것인가</h2>
+  <div class="why">넷 중에서 고릅니다. 내 컴퓨터 모델(Ollama)은 키가 필요 없습니다.</div>
+  <table><thead><tr><th style="width:44px"></th><th>제공자</th><th style="width:90px">상태</th>
+    <th>모델</th><th style="width:180px">키</th><th style="width:90px"></th></tr></thead>
+    <tbody id="provbody"></tbody></table>
+  <div class="msg" id="m-model"></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let S=null;
+const api=async(p,b)=>(await fetch(p,b?{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify(b)}:{})).json();
+const say=(id,ok,t)=>{const e=$(id);e.className='msg '+(ok?'ok':'bad');e.textContent=t;
+  setTimeout(()=>{if(ok)e.style.display='none'},6000)};
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+
+function trackRow(t={}){return `<tr>
+ <td><input class="tk" value="${esc(t.key||'')}" placeholder="policy"></td>
+ <td><input class="tl" value="${esc(t.label||'')}"></td>
+ <td><input class="tf" value="${esc(t.field_label||'')}"></td>
+ <td><input type="number" class="tmin" value="${(t.quota||[0,0])[0]}" min="0"></td>
+ <td><input type="number" class="tmax" value="${(t.quota||[0,0])[1]}" min="0"></td>
+ <td><input type="color" class="tc" value="${esc(t.color||'#38E1FF')}"></td>
+ <td><button class="sm danger" onclick="this.closest('tr').remove()">삭제</button></td></tr>`;}
+
+function srcRow(s={}){const cols=(S.collectors||[]).map(c=>
+  `<option${c===s.collector?' selected':''}>${c}</option>`).join('');
+ const trs=(S.tracks||[]).map(t=>`<option${t.key===s.track?' selected':''}>${t.key}</option>`).join('');
+ return `<tr>
+ <td><input type="checkbox" class="se" style="width:auto"${s.enabled?' checked':''}></td>
+ <td><input class="sn" value="${esc(s.name||'')}" placeholder="이름">
+     <input class="si" value="${esc(s.id||'')}" placeholder="id" style="margin-top:4px;font-size:12px"></td>
+ <td><select class="sc">${cols}</select></td>
+ <td><select class="st">${trs}</select></td>
+ <td><input type="number" class="sw" step="0.1" value="${s.weight??1.0}"></td>
+ <td><textarea class="sp" style="min-height:56px">${esc(JSON.stringify(s.params||{},null,0))}</textarea></td>
+ <td><button class="sm" onclick="testSrc(this)">시험</button></td></tr>`;}
+
+function relRow(g={}){return `<tr>
+ <td><input class="rg" value="${esc(g.group||'')}"></td>
+ <td><input type="number" class="rw" step="0.5" value="${g.weight??1.0}"></td>
+ <td><textarea class="rk">${esc((g.keywords||[]).join(', '))}</textarea>
+     <input class="rl" value="${esc(g.label||'')}" placeholder="화면에 보일 설명" style="margin-top:4px;font-size:12px"></td>
+ <td><textarea class="rc" style="min-height:56px">${esc((g.context||[]).join(', '))}</textarea></td>
+ <td><button class="sm danger" onclick="this.closest('tr').remove()">삭제</button></td></tr>`;}
+
+function provRow(p){const cur=S.provider===p.name;
+ const needKey=['anthropic','openai','gemini'].includes(p.name);
+ return `<tr data-p="${p.name}">
+ <td><input type="radio" name="prov" style="width:auto"${cur?' checked':''}
+      onchange="pickProv('${p.name}')"></td>
+ <td>${esc(p.label)}<div class="why">${esc(p.detail||'')}</div></td>
+ <td><span class="pill ${p.ready?'on':'off'}">${p.ready?'쓸 수 있음':'설정 필요'}</span></td>
+ <td><input class="pm" value="${esc(p.model||'')}" placeholder="비우면 기본"></td>
+ <td>${needKey?'<input class="pk" type="password" placeholder="키를 넣으면 저장됩니다">':'<span class="why">필요 없음</span>'}</td>
+ <td><button class="sm" onclick="testProv('${p.name}')">시험</button></td></tr>`;}
+
+function render(){
+ $('#profile').innerHTML=(S.profiles||[]).map(p=>
+   `<option${p===S.profile_id?' selected':''}>${p}</option>`).join('');
+ const o=S.org||{};
+ $('#publisher').value=o.publisher||''; $('#team').value=o.team||'';
+ $('#series').value=o.series||''; $('#pname').value=o.name||''; $('#subject').value=o.subject||'';
+ const f=S.filter||{};
+ $('#core').value=(f.core||[]).join('\n'); $('#adjacent').value=(f.adjacent||[]).join('\n');
+ $('#min_focus').value=f.min_focus??3.5; $('#ance').checked=!!f.adjacent_needs_core;
+ $('#trackbody').innerHTML=(S.tracks||[]).map(trackRow).join('');
+ const c=S.compose||{};
+ $('#total_max').value=c.total_max??8; $('#llm_rerank').checked=!!c.llm_rerank;
+ $('#drop_same').checked=!!c.drop_same_event;
+ $('#srcbody').innerHTML=(S.sources||[]).map(srcRow).join('');
+ $('#relbody').innerHTML=(S.relevance||[]).map(relRow).join('');
+ $('#provbody').innerHTML=(S.providers||[]).map(provRow).join('');
+}
+async function load(){S=await api('/api/setup/state');render();}
+
+const collect={
+ org:()=>({publisher:$('#publisher').value,team:$('#team').value,series:$('#series').value,
+           name:$('#pname').value,subject:$('#subject').value}),
+ keywords:()=>({core:$('#core').value,adjacent:$('#adjacent').value,
+                min_focus:+$('#min_focus').value,adjacent_needs_core:$('#ance').checked}),
+ tracks:()=>({tracks:$$('#trackbody tr').map(r=>({key:r.querySelector('.tk').value,
+   label:r.querySelector('.tl').value,field_label:r.querySelector('.tf').value,
+   min:+r.querySelector('.tmin').value,max:+r.querySelector('.tmax').value,
+   color:r.querySelector('.tc').value}))}),
+ sources:()=>({sources:$$('#srcbody tr').map(r=>{let p={};
+   try{p=JSON.parse(r.querySelector('.sp').value||'{}')}catch(e){}
+   return {id:r.querySelector('.si').value,name:r.querySelector('.sn').value,
+     collector:r.querySelector('.sc').value,track:r.querySelector('.st').value,
+     weight:+r.querySelector('.sw').value,enabled:r.querySelector('.se').checked,params:p};})}),
+ relevance:()=>({groups:$$('#relbody tr').map(r=>({group:r.querySelector('.rg').value,
+   weight:+r.querySelector('.rw').value,label:r.querySelector('.rl').value,
+   keywords:r.querySelector('.rk').value,context:r.querySelector('.rc').value}))}),
+};
+
+$$('[data-save]').forEach(b=>b.onclick=async()=>{
+  const k=b.dataset.save;
+  const extra = k==='tracks' ? {total_max:+$('#total_max').value,
+      llm_rerank:$('#llm_rerank').checked, drop_same_event:$('#drop_same').checked} : null;
+  const r=await api('/api/setup/'+k, collect[k]());
+  if(extra) await api('/api/setup/compose', extra);
+  say('#m-'+(k==='keywords'?'kw':k==='relevance'?'rel':k), r.ok, r.ok?'저장했습니다.':r.error);
+  if(r.ok) load();
+});
+
+$('#addtrack').onclick=()=>$('#trackbody').insertAdjacentHTML('beforeend',trackRow());
+$('#addsrc').onclick=()=>$('#srcbody').insertAdjacentHTML('beforeend',
+  srcRow({enabled:true,collector:'google_news',weight:1.0,params:{queries:[{q:'검색어'}]}}));
+$('#addrel').onclick=()=>$('#relbody').insertAdjacentHTML('beforeend',relRow({weight:2.0}));
+
+$('#kwtest').onclick=async()=>{
+  await api('/api/setup/keywords', collect.keywords());
+  const r=await api('/api/setup/test/keywords',{});
+  say('#m-kw', r.ok, r.ok
+    ? `${r.raw} 기준 ${r.total}개 중 ${r.passed}개가 통과합니다. 예: ${(r.sample||[]).slice(0,3).join(' / ')}`
+    : r.error);
+};
+window.testSrc=async(btn)=>{
+  const r=btn.closest('tr'); let p={}; try{p=JSON.parse(r.querySelector('.sp').value||'{}')}catch(e){}
+  btn.textContent='…';
+  const res=await api('/api/setup/test/source',{id:r.querySelector('.si').value||'test',
+    name:r.querySelector('.sn').value,collector:r.querySelector('.sc').value,
+    track:r.querySelector('.st').value,params:p,enabled:true});
+  btn.textContent='시험';
+  say('#m-sources', res.ok, res.ok
+    ? `${res.count}건 들어옵니다. ${(res.sample||[])[0]||''}` : res.error);
+};
+window.pickProv=async(n)=>{const r=await api('/api/setup/model',{provider:n});
+  if(r.ok){S.provider=n; say('#m-model',true,'제공자를 '+n+' 로 바꿨습니다.');}};
+window.testProv=async(n)=>{
+  const row=document.querySelector(`tr[data-p="${n}"]`);
+  const body={provider:n, model:row.querySelector('.pm').value};
+  const k=row.querySelector('.pk'); if(k&&k.value) body.api_key=k.value;
+  await api('/api/setup/model', body);
+  const r=await api('/api/setup/test/model',{provider:n});
+  say('#m-model', r.ok, r.ok ? `연결됐습니다. 응답: ${r.reply}`
+      + ((r.models||[]).length?`  · 쓸 수 있는 모델: ${r.models.slice(0,6).join(', ')}`:'')
+      : r.error);
+  load();
+};
+$('#profile').onchange=async e=>{await api('/api/setup/profile/use',{id:e.target.value});load();};
+$('#newprof').onclick=async()=>{
+  const id=prompt('새 분야의 영문 이름 (예: intl-coop)'); if(!id) return;
+  const name=prompt('화면에 보일 이름 (예: 국제협력 동향지)')||id;
+  const r=await api('/api/setup/profile/new',{id,name});
+  if(!r.ok) return alert(r.error);
+  await api('/api/setup/profile/use',{id:r.id}); load();
+};
+$('#finish').onclick=async()=>{await api('/api/setup/done',{}); location.href='/';};
+load();
+</script></body></html>

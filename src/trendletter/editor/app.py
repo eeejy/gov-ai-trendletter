@@ -21,7 +21,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from flask import Flask, jsonify, render_template, request, send_file
+from flask import redirect, render_template as _rt,  Flask, jsonify, render_template, request, send_file
 
 from .. import llm, pipeline, store
 from ..config import load
@@ -112,8 +112,22 @@ ROLE_KO = {"primary": "일반", "must": "우리 기관", "verify": "교차 확�
            "discover": "새 소식 발굴"}   # discover 가 빠져 원문이 노출됐다
 
 
+from .settings import bp as _setup_bp          # noqa: E402
+app.register_blueprint(_setup_bp)
+
+
+@app.get("/setup")
+def setup():
+    from flask import render_template
+    return render_template("setup.html")
+
+
 @app.get("/")
 def index():
+    # 설정을 마치기 전에는 설정 화면부터 보여 준다.
+    from flask import redirect
+    if not load().settings.get("setup_done"):
+        return redirect("/setup")
     cfg = load()
     return render_template(
         "editor.html",
