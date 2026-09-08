@@ -1,0 +1,193 @@
+{
+ "raw": "collect-20260902-2235.json",
+ "articles": 445,
+ "clusters": 197,
+ "selected": [
+  {
+   "title": "해양경찰청, AI·친환경·K-조선·방산 기술로 차세대 함정 청사진 그린다",
+   "track": "policy",
+   "score": 15.6,
+   "reasons": {
+    "source": 2.0,
+    "outlets": 0.0,
+    "ai_focus": 2.0,
+    "work": 10.0,
+    "ontology": 1.6,
+    "dev_signal": 0.0,
+    "cross_platform": 0.0,
+    "must": 0.0,
+    "priority": 0.0
+   },
+   "onto": [
+    "기관",
+    "업무 분야"
+   ],
+   "work": [
+    "유사기관",
+    "직접",
+    "현장임무"
+   ]
+  },
+  {
+   "title": "국민이 뽑은 최고의 지진안전 AI 영상은?",
+   "track": "policy",
+   "score": 10.3,
+   "reasons": {
+    "source": 3.0,
+    "outlets": 0.0,
+    "ai_focus": 3.5,
+    "work": 1.4,
+    "ontology": 2.4,
+    "dev_signal": 0.0,
+    "cross_platform": 0.0,
+    "must": 0.0,
+    "priority": 0.0
+   },
+   "onto": [
+    "기술·도구",
+    "업무 분야",
+    "정책·사업"
+   ],
+   "work": [
+    "인재교육",
+    "인프라"
+   ]
+  },
+  {
+   "title": "AI 행정 혁신부터 조직문화까지 지방공무원 우수 교육 사례 한자리에",
+   "track": "policy",
+   "score": 10.1,
+   "reasons": {
+    "source": 3.0,
+    "outlets": 0.0,
+    "ai_focus": 2.5,
+    "work": 3.0,
+    "ontology": 1.6,
+    "dev_signal": 0.0,
+    "cross_platform": 0.0,
+    "must": 0.0,
+    "priority": 0.0
+   },
+   "onto": [
+    "업무 분야",
+    "정책·사업"
+   ],
+   "work": [
+    "공공전환"
+   ]
+  },
+  {
+   "title": "AI 경쟁 넘어 '사회적 합의'로…국가AI전략위, 유럽과 정책 방향 논의",
+   "track": "industry",
+   "score": 11.2,
+   "reasons": {
+    "source": 2.4,
+    "outlets": 0.0,
+    "ai_focus": 3.0,
+    "work": 0.0,
+    "ontology": 0.8,
+    "dev_signal": 0.0,
+    "cross_platform": 0.0,
+    "must": 0.0,
+    "priority": 5.0
+   },
+   "onto": [
+    "기관"
+   ],
+   "work": []
+  },
+  {
+   "title": "지역 AX 3345억원으로 확대…의료·농업·제조 AI 확산 가속",
+   "track": "industry",
+   "score": 10.7,
+   "reasons": {
+    "source": 2.4,
+    "outlets": 0.0,
+    "ai_focus": 3.0,
+    "work": 2.9,
+    "ontology": 2.4,
+    "dev_signal": 0.0,
+    "cross_platform": 0.0,
+    "must": 0.0,
+    "priority": 0.0
+   },
+   "onto": [
+    "기관",
+    "업무 분야",
+    "정책·사업"
+   ],
+   "work": [
+    "인재교육",
+    "인프라"
+   ]
+  },
+  {
+   "title": "과기부, 독파모 프로젝트서 확보한 AI 학습용 데이터 29종 개방",
+   "track": "industry",
+   "score": 10.4,
+   "reasons": {
+    "source": 3.2,
+    "outlets": 1.5,
+    "ai_focus": 2.5,
+    "work": 0.8,
+    "ontology": 2.4,
+    "dev_signal": 0.0,
+    "cross_platform": 0.0,
+    "must": 0.0,
+    "priority": 0.0
+   },
+   "onto": [
+    "기관",
+    "업무 분야",
+    "정책·사업"
+   ],
+   "work": [
+    "인프라"
+   ]
+  },
+  {
+   "title": "퍼플렉시티, 맥용 ‘하이브리드 컴퓨팅’ 출시...클라우드·온디바이스 AI 통합",
+   "track": "industry",
+   "score": 10.4,
+   "reasons": {
+    "source": 2.6,
+    "outlets": 0.0,
+    "ai_focus": 3.4,
+    "work": 2.0,
+    "ontology": 2.4,
+    "dev_signal": 0.0,
+    "cross_platform": 0.0,
+    "must": 0.0,
+    "priority": 0.0
+   },
+   "onto": [
+    "기술·도구",
+    "업무 분야",
+    "정책·사업"
+   ],
+   "work": [
+    "인프라"
+   ]
+  },
+  {
+   "title": "Kimi K3 and DeepSeek 4 Pro are FREE on NVIDEA NIM (60 req/min.)",
+   "track": "dev",
+   "score": 12.2,
+   "reasons": {
+    "source": 1.8,
+    "outlets": 1.5,
+    "ai_focus": 2.5,
+    "work": 0.0,
+    "ontology": 0.8,
+    "dev_signal": 4.0,
+    "cross_platform": 1.6,
+    "must": 0.0,
+    "priority": 0.0
+   },
+   "onto": [
+    "기술·도구"
+   ],
+   "work": []
+  }
+ ]
+}

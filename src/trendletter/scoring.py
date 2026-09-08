@@ -10,31 +10,74 @@ import math
 import re
 from typing import Any, Dict, List
 
-from .config import Config
+from .config import Config, load
 from .models import Cluster
 
-BOOST_WEIGHT = {"강함": 3.0, "보통": 1.5, "약함": 0.5}
+# 예전에는 이 자리에 AI 낱말 정규식이 박혀 있었다. 키워드를 전부 바꿔도
+# 영문 AI 낱말이 계속 관문을 통과시켜, 분야를 바꿀 수가 없었다.
+# 이제 분야가 정한다 — profiles/<분야>/profile.yaml 의 filter.core_en.
 
-# 영어권 개발자 소스는 한글 키워드에 걸리지 않으므로 별도로 본다.
-_EN_AI = re.compile(
-    r"\b(ai|llm|gpt|claude|gemini|llama|agent|rag|model|inference|"
-    r"transformer|openai|anthropic|deepseek|qwen|mistral|gpu|cuda)\b",
-    re.I,
-)
+
+def _agency_subject(cfg: Config):
+    """제목이 기관 이름으로 시작하는지 보는 정규식.
+
+    기관 목록을 코드에 두지 않고 **온톨로지의 기관 축에서 만든다.**
+    분야가 바뀌면 그 분야의 기관들이 자동으로 들어온다.
+    """
+    key = "_rx_agency_subject"
+    got = getattr(cfg, key, None)
+    if got is not None:
+        return got
+    axis = (cfg.ontology.get("meta") or {}).get("org_axis", "기관")
+    names = set()
+    for group in ((cfg.ontology.get("axes") or {}).get(axis) or {}).values():
+        for kw in group or []:
+            w = str(kw).strip()
+            if len(w) >= 2 and not w.isdigit():
+                names.add(w)
+    names.update(str(x) for x in (cfg.prof("penalties.agency_extra") or []))
+    rx = (re.compile(r"^\s*(%s)" % "|".join(sorted(map(re.escape, names), key=len,
+                                                   reverse=True)))
+          if names else None)
+    setattr(cfg, key, rx)
+    return rx
+
+
+def _penalty(cfg: Config, name: str, title: str) -> float:
+    """분야가 정한 감점 규칙 하나를 적용한다."""
+    rule = cfg.prof("penalties.%s" % name) or {}
+    rx = cfg.rx("penalties.%s.pattern" % name)
+    if not rx or not rx.search(title or ""):
+        return 0.0
+    unless = cfg.rx("penalties.%s.unless" % name)
+    if unless and unless.search(title or ""):
+        return 0.0
+    keep = rule.get("unless_contains")
+    if keep and str(keep) in (title or ""):
+        return 0.0
+    if rule.get("unless_agency_subject"):
+        agency = _agency_subject(cfg)
+        if agency and agency.search(title or ""):
+            return 0.0
+    return float(rule.get("score") or 0.0)
 
 
 def _count(keywords, text_low) -> int:
     return sum(1 for kw in keywords if str(kw).lower() in text_low)
 
 
-def ai_focus(cluster: Cluster, cfg: Config) -> float:
-    """AI가 기사의 주제인지, 스쳐 지나가는 언급인지를 구분한다.
+def topic_focus(cluster: Cluster, cfg: Config) -> float:
+    """이 분야가 기사의 주제인지, 스쳐 지나가는 언급인지를 구분한다.
 
     '해양안전 콘텐츠 공모전' 본문에 '인공지능콘텐츠' 가 한 번 나온다고 해서
     AI 동향지 항목이 되지는 않는다. 제목 적중을 크게 본다.
+
+    낱말과 가중치는 전부 분야가 정한다.
     """
-    core = cfg.get("filter.ai_core", []) or []
-    adjacent = cfg.get("filter.ai_adjacent", []) or []
+    core = cfg.get("filter.core", []) or []
+    adjacent = cfg.get("filter.adjacent", []) or []
+    w = cfg.get("filter.weights", {}) or {}
+    core_en = cfg.rx("filter.core_en")
 
     titles = " ".join(a.title for a in cluster.articles)
     bodies = " ".join(
@@ -42,67 +85,43 @@ def ai_focus(cluster: Cluster, cfg: Config) -> float:
     )
     tl, bl = titles.lower(), bodies.lower()
 
+    core_in_title = bool(_count(core, tl)) or bool(core_en and core_en.search(titles))
+    core_in_body = _count(core, bl)
+
     score_ = 0.0
-    if _count(core, tl) or _EN_AI.search(titles):
-        score_ += 4.0
+    if core_in_title:
+        score_ += float(w.get("title_core", 4.0))
     if _count(adjacent, tl):
-        score_ += 1.5
-    score_ += min(_count(core, bl), 3) * 1.0
-    score_ += min(_count(adjacent, bl), 2) * 0.3
+        # adjacent 는 단독으로 부족하다는 것이 원래 설계였는데 코드는 그러지
+        # 않았다. 어느 쪽으로 할지 분야가 고른다 (기존 동작은 false).
+        if not cfg.get("filter.adjacent_needs_core", False) or core_in_body or core_in_title:
+            score_ += float(w.get("title_adjacent", 1.5))
+    score_ += min(core_in_body, int(w.get("body_core_cap", 3))) * float(w.get("body_core", 1.0))
+    score_ += (min(_count(adjacent, bl), int(w.get("body_adjacent_cap", 2)))
+               * float(w.get("body_adjacent", 0.3)))
     return score_
 
 
-# 주간 검색량 집계, 시황 요약, 주가 기사는 '동향'이 아니라 목록이다.
-_NOT_ISSUE = re.compile(
-    r"이슈\s*트렌드|주간\s*(이슈|정리|브리핑)|한\s*주\s*(정리|요약)|"
-    r"주가|증시|코스피|코스닥|시황|급등|급락|오늘의|이번\s*주\s*인기"
-)
+# 예전 이름. 다른 모듈이 부르고 있어 남겨 둔다.
+ai_focus = topic_focus
 
 
-# 시청 위주 행사 안내 / 직원이 참여할 수 있는 행사
-_EVENT_PROMO = re.compile(r"특강|세미나|웨비나|강연|설명회|간담회|즐겨요|보러오세요|시청")
-_JOINABLE = re.compile(r"경진대회|공모전|해커톤|공모|모집|접수|참가|아이디어")
+def passes_gate(cluster: Cluster, cfg: Config) -> bool:
+    """이 분야의 자료가 아닌 것을 후보에서 뺀다.
 
-# 업체가 사업을 따냈다는 소식. 우리 기관 이름이 스치듯 들어가지만
-# 담당자가 얻을 것이 없다. 실측: 「스텔라비전, 해경 항공 AI 개발 참여」가 2위였다.
-# 발주·계약 자체가 정책 변화인 경우는 기관이 주어로 나오므로 아래에서 걸러진다.
-# 해외 기관 소식. 유사기관 낱말('경찰')에 걸려 올라오지만 우리 제도와 무관하다.
-# 실측: 「日 경찰, 웨어러블 카메라 2천대 배치」가 5위, 「美 경찰 차량 추적」이 12위였다.
-_OVERSEAS = re.compile(
-    r"(^|[\s\[(])(日|美|中|英|獨|佛|일본|미국|중국|영국|독일|프랑스|호주|캐나다|"
-    r"싱가포르|대만|인도|베트남|EU|유럽연합)\s*(경찰|소방|정부|당국|내무)"
-)
-# 지방 조직 소식. 우리 유사기관의 지역 지점 이야기는 범정부 동향이 아니다.
-# 해경은 우리 청이므로 뺀다 — '부산해경 드론 순찰' 같은 건 살려야 한다.
-_LOCAL_PEER = re.compile(
-    r"(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|"
-    r"경북|경남|제주)\s*(자치)?(경찰|소방|지방경찰|경찰청|소방본부|소방서)"
-)
-
-_VENDOR_DEAL = re.compile(
-    r"(개발\s*참여|사업자로?\s*선정|주관기관\s*선정|수주|공급\s*계약|"
-    r"구축\s*계약|납품|우선협상|컨소시엄\s*구성|출사표)"
-)
-# 제목이 기관으로 시작하면 기관 발표다. 업체가 주어면 홍보다.
-_AGENCY_SUBJECT = re.compile(
-    r"^\s*(해양경찰청|해양경찰|해경청|해양수산부|해수부|경찰청|소방청|"
-    r"과학기술정보통신부|과기정통부|행정안전부|행안부|국무조정실|"
-    r"국가AI전략위|국가인공지능전략위|개인정보보호위|감사원|국방부|관세청|"
-    r"산림청|기상청|정부|대통령실|청와대|국회)"
-)
-
-
-def is_ai_related(cluster: Cluster, cfg: Config) -> bool:
-    """AI 정보동향지이므로 AI가 주제가 아닌 자료는 후보에서 뺀다.
-
-    해양경찰청 보도자료처럼 게시판 전체를 가져오는 소스가 있어 반드시 필요하다.
+    기관 게시판처럼 전체를 가져오는 수집원이 있어 반드시 필요하다.
     빠뜨린 항목은 편집기의 후보 목록에서 사람이 직접 추가할 수 있다.
     """
-    if _NOT_ISSUE.search(cluster.lead.title or ""):
+    exclude = cfg.rx("filter.exclude_title")
+    if exclude and exclude.search(cluster.lead.title or ""):
         return False
-    if not cfg.get("filter.require_ai", True):
+    if not cfg.get("filter.require_topic", cfg.get("filter.require_ai", True)):
         return True
-    return ai_focus(cluster, cfg) >= 3.5
+    return topic_focus(cluster, cfg) >= float(cfg.get("filter.min_focus", 3.5))
+
+
+# 예전 이름. pipeline 이 import 하고 있어 남겨 둔다.
+is_ai_related = passes_gate
 
 
 def tag(cluster: Cluster, ontology: Dict[str, Any]) -> Dict[str, List[str]]:
@@ -269,31 +288,17 @@ def score(cluster: Cluster, cfg: Config, heat: Dict[str, set] = None) -> Cluster
     #      다만 직원이 참여할 수 있는 경진대회·공모전·해커톤은 지난 호에서
     #      꾸준히 실렸으므로 감점하지 않는다.
     title_ = cluster.lead.title
-    if _EVENT_PROMO.search(title_) and not _JOINABLE.search(title_):
-        reasons["promo"] = -2.5
+    _done_groups = set()
+    for _name in ("event_promo", "vendor_deal", "overseas", "local_peer"):
+        _grp = (cfg.prof("penalties.%s.exclusive_group" % _name) or "")
+        if _grp and _grp in _done_groups:
+            continue          # 같은 갈래는 하나만 매긴다 (원래 elif 였다)
+        _hit = _penalty(cfg, _name, title_)
+        if _hit:
+            reasons[_name] = _hit
+            if _grp:
+                _done_groups.add(_grp)
 
-    # 6-3) 업체가 사업을 따냈다는 소식은 기관이 주어일 때만 남긴다.
-    #      우리 기관 이름이 들어갔다고 업무에 쓸 것이 생기지는 않는다.
-    if _VENDOR_DEAL.search(title_) and not _AGENCY_SUBJECT.match(title_):
-        reasons["vendor"] = -6.0
-
-    # 6-4) 해외 기관·지방 조직 소식은 유사기관 가산을 되돌린다.
-    #      '경찰' 이라는 낱말만으로 우리 제도와 이어지지는 않는다.
-    if _OVERSEAS.search(title_):
-        reasons["overseas"] = -5.0
-    elif _LOCAL_PEER.search(title_) and "해경" not in title_:
-        reasons["local"] = -3.5
-
-    # 7) 우리 기관이 직접 발표한 자료에는 가산하지 않는다.
-    #
-    #    동향지는 담당자가 '모르는 것'을 알려 주는 물건이다. 우리 청 보도자료는
-    #    이미 아는 내용일 때가 많다. 지난 11개 호에서 실린 내부 소식(19%)도
-    #    해커톤·경진대회처럼 수집기가 잡을 수 없는 팀 업무여서, 담당자가
-    #    편집기에서 직접 넣은 것이었다. 점수로 밀어 올릴 대상이 아니다.
-    #
-    #    다만 후보에서 빼지는 않는다(compose.must_include_roles). 우리 청
-    #    소식이 있었다는 사실 자체는 담당자가 보고 판단해야 한다.
-    roles = {a.raw.get("role") for a in cluster.articles}
     reasons["must"] = 0.0
 
     # 8) 최우선 주제(국가AI전략위)는 내용 기준으로 가산한다.
@@ -360,7 +365,9 @@ def is_tool_news(cluster: Cluster) -> bool:
     if any(is_product(n) for n in entities(title)):
         return True
     # 개발자 트랙이면서 실제로 무언가가 공개·출시된 소식
-    return cluster.lead.track == "dev" and bool(_ANNOUNCE.search(title))
+    cfg = load()
+    need = cfg.track(cluster.lead.track).get("require_cross_platform")
+    return bool(need) and bool(_ANNOUNCE.search(title))
 
 
 def select(clusters: List[Cluster], cfg: Config) -> List[Cluster]:
@@ -369,7 +376,8 @@ def select(clusters: List[Cluster], cfg: Config) -> List[Cluster]:
     같은 사건을 여러 매체가 제각각 제목으로 쓴 것은 먼저 걸러 낸다.
     실측: 「경찰청 수사자료 분석 솔루션」이 2·3·5위를 차지했다.
     """
-    quota = cfg.get("compose.quota", {}) or {}
+    # 트랙과 쿼터는 분야가 정한다 (profiles/<분야>/profile.yaml 의 tracks).
+    quota = {k: cfg.quota(k) for k in cfg.track_keys()}
     total_max = int(cfg.get("compose.total_max", 6))
     if cfg.get("compose.drop_same_event", True):
         clusters = diversify(clusters, take=len(clusters))
@@ -378,7 +386,10 @@ def select(clusters: List[Cluster], cfg: Config) -> List[Cluster]:
     used = set()
 
     def ok(c: Cluster) -> bool:
-        return c.lead.track != "dev" or dev_eligible(c, cfg)
+        # 여러 플랫폼 확인을 요구하는 트랙만 그 검사를 받는다.
+        # 예전엔 트랙 이름 'dev' 가 코드에 박혀 있었다.
+        need = cfg.track(c.lead.track).get("require_cross_platform")
+        return not need or dev_eligible(c, cfg)
 
     # 1단계: 트랙별 최소 건수 채우기
     for track, bounds in quota.items():
@@ -421,7 +432,9 @@ def select(clusters: List[Cluster], cfg: Config) -> List[Cluster]:
         used.add(id(c))
         counts[t] = counts.get(t, 0) + 1
 
-    chosen.sort(key=lambda c: (["policy", "industry", "dev"].index(c.lead.track), -c.score))
+    # 트랙 순서는 프로파일이 적은 차례를 따른다
+    _order = {k: i for i, k in enumerate(cfg.track_keys())}
+    chosen.sort(key=lambda c: (_order.get(c.lead.track, 99), -c.score))
     return chosen[:total_max]
 
 
@@ -432,38 +445,37 @@ def select(clusters: List[Cluster], cfg: Config) -> List[Cluster]:
 # 오르내린다(2026-08-29: Ox Alpha·GLM 이 HN·Reddit·ZDNet 에 함께 등장).
 # 그래서 '이름이 몇 개 플랫폼에 걸쳐 나오는가' 를 개발자 트랙의 신호로 쓴다.
 
-_VENDOR = (
-    r"GPT|Claude|Gemini|Llama|Qwen|DeepSeek|GLM|Kimi|Mistral|MiniMax|Grok|"
-    r"Phi|Nova|Titan|Command R|Ox Alpha|Sora|Midjourney|Stable Diffusion|"
-    r"Whisper|Copilot|Cursor|Codex|Devin|opencode|Ollama|vLLM|LangChain|"
-    r"제미나이|클로드|딥시크|라마|큐원|지푸|오픈AI|앤트로픽|엔비디아"
-)
-_ENTITY_PATTERNS = [
-    # 벤더·모델 이름 + 뒤따르는 버전 (GLM-5.3, Gemini 3.5, Kimi K3)
-    re.compile(r"\b(%s)\b[-\s]?([A-Za-z]?\d[\d.]*)?" % _VENDOR, re.I),
-    # 대문자로 시작하고 버전이 붙은 제품명 (Ox Alpha, OpenBot 2)
-    re.compile(r"\b([A-Z][A-Za-z]{2,})[-\s](\d[\d.]*)\b"),
-]
+# 제품·모델 이름은 분야가 정한다 (profiles/<분야>/lexicon.yaml 의 vendors).
+# 비어 있어도 아래 범용 패턴이 남아 파이프라인이 죽지 않는다.
+_GENERIC_ENTITY = re.compile(r"\b([A-Z][A-Za-z]{2,})[-\s](\d[\d.]*)\b")
 
-# 플랫폼 묶음. 국내 매체가 함께 다루면 그것도 별개 신호로 센다.
-_PLATFORM = {
-    "hackernews": "HN",
-    "reddit": "Reddit",
-    "github_trending": "GitHub",
-    "aitimes": "국내매체",
-    "zdnet": "국내매체",
-    "itnewsmoa": "국내매체",
-}
+
+def _entity_patterns(cfg: Config):
+    key = "_rx_entities"
+    got = getattr(cfg, key, None)
+    if got is not None:
+        return got
+    vendors = [str(v).strip() for v in (cfg.lex("vendors") or []) if str(v).strip()]
+    pats = []
+    if vendors:
+        joined = "|".join(sorted(map(re.escape, vendors), key=len, reverse=True))
+        pats.append(re.compile(r"\b(%s)\b[-\s]?([A-Za-z]?\d[\d.]*)?" % joined, re.I))
+    pats.append(_GENERIC_ENTITY)
+    setattr(cfg, key, pats)
+    return pats
 
 
 # 소문자 기본형 → 실제 표기. 'ox alpha' 대신 'Ox Alpha' 로 보여주기 위한 것.
 _DISPLAY: Dict[str, str] = {}
 
 
-def entities(text: str) -> set:
-    """제목에서 모델·도구 이름을 뽑아 소문자 기본형으로 돌려준다."""
+def entities(text: str, cfg: Config = None) -> set:
+    """제목에서 모델·도구 이름을 뽑아 소문자 기본형으로 돌려준다.
+
+    이름 목록은 분야가 정한다. 비어 있으면 범용 패턴(대문자+버전)만 남는다.
+    """
     found = set()
-    for pat in _ENTITY_PATTERNS:
+    for pat in _entity_patterns(cfg or load()):
         for m in pat.finditer(text or ""):
             raw = (m.group(1) or "").strip()
             name = raw.lower()
@@ -480,22 +492,23 @@ def display_name(key: str) -> str:
 # 회사 이름은 같아도 서로 다른 사건인 경우가 많다.
 # (앤트로픽의 표준 공개·칩 계약·법원 판결은 전부 별개 소식이다)
 # 제품·모델 이름이 같을 때만 같은 사건으로 볼 수 있다.
-_VENDOR_ONLY = {
-    "앤트로픽", "엔비디아", "오픈ai", "구글", "메타", "마이크로소프트",
-    "네이버", "카카오", "삼성", "지푸",
-    "anthropic", "openai", "google", "nvidia", "meta", "microsoft",
-}
+def is_product(name: str, cfg: Config = None) -> bool:
+    """회사 이름은 제품이 아니다. 이것만으로는 같은 사건으로 묶지 않는다."""
+    cfg = cfg or load()
+    only = {str(x).lower() for x in (cfg.lex("company_only") or [])}
+    return name.lower() not in only
 
 
-def is_product(name: str) -> bool:
-    return name.lower() not in _VENDOR_ONLY
+def entity_platforms(articles, cfg: Config = None) -> Dict[str, set]:
+    """이름별로 어떤 플랫폼에서 언급됐는지 모은다.
 
-
-def entity_platforms(articles) -> Dict[str, set]:
-    """이름별로 어떤 플랫폼에서 언급됐는지 모은다."""
+    수집원 id → 플랫폼 짝은 sources.yaml 의 platform 필드에서 온다.
+    예전엔 이 사전이 코드에 박혀 있어 수집원 id 를 바꾸면 점수가 0이 됐다.
+    """
+    platforms = (cfg or load()).platforms()
     table: Dict[str, set] = {}
     for a in articles:
-        platform = _PLATFORM.get(a.source_id)
+        platform = platforms.get(a.source_id)
         if not platform:
             continue
         for name in entities(a.title + " " + a.summary):
@@ -587,7 +600,7 @@ def explain(cluster: Cluster, cfg: Config, rank_: int = 0, total: int = 0) -> Li
         out.append("행사 안내 성격 (참고용)")
 
     if rank_ and total:
-        label = {"policy": "정책", "industry": "산업", "dev": "개발자"}.get(
+        label = {t["key"]: t.get("label", t["key"]) for t in load().tracks()}.get(
             cluster.lead.track, "전체"
         )
         out.append("%s 트랙 후보 중 중요도 %d위 (%d개 이슈 중)" % (label, rank_, total))
@@ -604,44 +617,13 @@ def explain(cluster: Cluster, cfg: Config, rank_: int = 0, total: int = 0) -> Li
 
 _HANGUL_W = re.compile(r"[가-힣]")
 
-_STOP_KO = set(
-    "인공지능 지능 위해 통해 대한 있는 없는 이번 관련 지원 추진 개발 기술 서비스 사업 "
-    "모델 데이터 국내 정부 발표 확대 강화 방안 계획 도입 활용 구축 운영 제공 시행 "
-    "예정 방침 밝혀 위한 대해 따른 통한 최초 처음 오는 지난 올해 내년 우리 국민 "
-    "기업 산업 시장 분야 중심 기반 신규 주요 전체 대상 결과 참여 진행 협력 체결 "
-    "공개 출시 선정 개최 실시 마련 검토 논의 확인 시작 완료 성공 최대 최고 급증 "
-    "보도자료 참고자료 브리핑 정례 회의 간담회 등 시대 현장 방식 경우 이후 이상 "
-    "가능 필요 예상 전망 지난해 올해도 관계자 이날 대비 수준 규모 위원회 장관 "
-    "차관 청장 국장 실장 과장 팀장 본격 본격화 글로벌 세계 상보 종합 속보 단독 "
-    "전문가 관계 국가 한국 중국 미국 일본 대신 통제 고속도로 공모 이슈 트렌드 "
-    "지역 지방 서울 부산 인천 경기 이용 사용 제작 공유 확산 연구 조사 평가".split()
-)
-_STOP_EN = set(
-    "and for to is with in on the of that a an it its by from as at or be are was "
-    "this these those you your we our they their he she his her not but if then "
-    "how why what when where who which can will just new now more most all any "
-    "using use used make made get got has have had do does did about into over "
-    "own let via vs no yes out up down off than very much some other".split()
-)
 _WORD = re.compile(r"[가-힣]{2,}|[A-Za-z][A-Za-z0-9.\-]{2,}")
 
 # 개발자 트랙은 영어 제목이라 일반 낱말(model·code·free…)이 상위를 덮는다.
 # 영어는 '모델·도구 이름' 이거나 아래 목록에 있을 때만 키워드로 인정한다.
-_EN_ALLOW = {
-    "agent", "agents", "opensource", "benchmark", "inference", "rag",
-    "multimodal", "reasoning", "finetuning", "quantization", "context",
-    "coding", "robotics", "vision", "voice", "safety", "alignment",
-}
-# 같은 뜻의 표기를 하나로 모은다
-_ALIAS = {
-    "agents": "agent", "models": "model", "tools": "tool",
-    "에이전트": "agent", "오픈소스": "opensource",
-}
-
-
-def _norm_word(w: str) -> str:
+def _norm_word(w: str, alias: Dict[str, str] = None) -> str:
     w = w.strip(".,-·")
-    return _ALIAS.get(w.lower(), w.lower())
+    return (alias or {}).get(w.lower(), w.lower())
 
 
 def keywords(clusters: List[Cluster], picked: List[Cluster], limit: int = 24) -> List[Dict]:
@@ -653,6 +635,12 @@ def keywords(clusters: List[Cluster], picked: List[Cluster], limit: int = 24) ->
     """
     from collections import Counter
 
+    cfg = load()
+    stop_ko = {str(x) for x in (cfg.lex("stop_ko") or [])}
+    stop_en = {str(x) for x in (cfg.lex("stop_en") or [])}
+    allow_en = {str(x).lower() for x in (cfg.lex("allow_en") or [])}
+    alias = {str(k).lower(): str(v) for k, v in (cfg.lex("alias") or {}).items()}
+
     picked_ids = {id(c) for c in picked}
     count: Counter = Counter()
     track_of: Dict[str, str] = {}
@@ -663,13 +651,13 @@ def keywords(clusters: List[Cluster], picked: List[Cluster], limit: int = 24) ->
         title_entities = {e.lower() for e in entities(title)}
         seen = set()
         for raw_w in _WORD.findall(title):
-            key = _norm_word(raw_w)
+            key = _norm_word(raw_w, alias)
             if not key or len(key) < 2:
                 continue
-            if key in _STOP_EN or key in _STOP_KO or raw_w in _STOP_KO:
+            if key in stop_en or key in stop_ko or raw_w in stop_ko:
                 continue
             is_ko = bool(_HANGUL_W.search(key))
-            if not is_ko and key not in _EN_ALLOW and key not in title_entities:
+            if not is_ko and key not in allow_en and key not in title_entities:
                 continue
             if key in seen:
                 continue
@@ -689,7 +677,7 @@ def keywords(clusters: List[Cluster], picked: List[Cluster], limit: int = 24) ->
             {
                 "text": display_name(key) if key in hot_entities else key,
                 "count": n,
-                "track": track_of.get(key, "industry"),
+                "track": track_of.get(key, (load().track_keys() or ["policy"])[0]),
                 "picked": key in in_picked,
                 "entity": key in hot_entities,
             }
@@ -706,40 +694,6 @@ def _is_latin(s: str) -> bool:
 
 
 # 같은 개념의 한/영 표기를 하나로 모은다
-_TERM_ALIAS = {
-    "agent": "에이전트", "에이전트": "에이전트",
-    "llm": "LLM", "대규모언어모델": "LLM",
-    "rag": "RAG",
-    "mcp": "MCP",
-    "소버린": "소버린 AI",
-    "파운데이션모델": "파운데이션 모델",
-    "생성형": "생성형 AI",
-    "멀티모달": "멀티모달",
-    "오픈소스": "오픈소스",
-    "파인튜닝": "파인튜닝",
-}
-_TERM_DISPLAY = {"에이전트": "AI 에이전트"}
-
-# 해설할 것이 마땅치 않은 너무 일반적인 낱말
-# 종합 정리 대상으로는 너무 일반적인 말.
-# '로봇' 은 여러 매체에 흩어져 나오지만 하나의 사건이 아니다(2026-08-30).
-_TOO_BROAD = {
-    "보안", "검증", "api", "ide", "자동화", "센서", "개인정보", "윤리",
-    "로봇", "드론", "클라우드", "데이터센터", "반도체", "gpu", "빅데이터",
-    # 본문까지 세면서 걸려든 것들. 달·요일 약어는 제품 이름이 아니다.
-    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
-    "august", "january", "february", "october", "november", "december",
-    "ai 에이전트", "에이전트", "생성형 ai", "llm", "환각", "멀티모달",
-    # 핫이슈 자리는 '이게 뭔지 조사해 정리할' 대상이다. 이미 다 아는 이름은
-    # 설명할 것이 없다. 「앤트로픽 이용료 인하」·「일상으로 들어온 챗GPT」가
-    # 그래서 뽑혔었다. 새로 뜬 이름(GLM·Ox 알파 같은)에 자리를 내준다.
-    "claude", "클로드", "gpt", "chatgpt", "챗gpt", "openai", "오픈ai",
-    "gemini", "제미나이", "구글", "네이버", "카카오", "삼성", "마이크로소프트",
-    "앤트로픽", "anthropic", "copilot", "코파일럿", "nvidia", "엔비디아",
-    "비전", "모델", "플랫폼", "서비스", "시스템", "솔루션", "기술", "학습",
-}
-
-
 def tech_keywords(clusters: List[Cluster], cfg: Config, limit: int = 5) -> List[Dict]:
     """해설할 값어치가 있는 기술·도구 낱말만 고른다.
 
@@ -747,6 +701,10 @@ def tech_keywords(clusters: List[Cluster], cfg: Config, limit: int = 5) -> List[
     "이 말이 뭔데?" 에 답할 대상은 기술 용어와 제품 이름이어야 한다.
     과기부·행안부·민간·역량 같은 말은 해설할 것이 없다.
     """
+    cfg = cfg or load()
+    term_alias = {str(k).lower(): str(v) for k, v in (cfg.lex("term_alias") or {}).items()}
+    term_display = {str(k): str(v) for k, v in (cfg.lex("term_display") or {}).items()}
+    too_broad = {str(x).lower() for x in (cfg.lex("too_broad") or [])}
     from collections import Counter
 
     # 온톨로지 기술·도구 축의 낱말을 해설 대상으로 인정한다
@@ -782,17 +740,17 @@ def tech_keywords(clusters: List[Cluster], cfg: Config, limit: int = 5) -> List[
                     continue
             elif term not in low:
                 continue
-            canon = _TERM_ALIAS.get(term, term)
+            canon = term_alias.get(term, term)
             if canon in seen:
                 continue
             seen.add(term)
             seen.add(canon)
             count[canon] += 1
-            display.setdefault(canon, _TERM_DISPLAY.get(canon, canon))
+            display.setdefault(canon, term_display.get(canon, canon))
 
     out = []
     for key, n in count.most_common(limit * 6):
-        if n < 2 or key.lower() in _TOO_BROAD:
+        if n < 2 or key.lower() in too_broad:
             continue
         # 핫이슈 자리는 '이게 뭔지 조사해 설명할' 대상이다. 제품·모델 이름이라야
         # 설명할 것이 있다. 순한글 일반명사(유출·비전·환각)를 낱말 목록으로
@@ -821,17 +779,35 @@ def _looks_like_product(term: str) -> bool:
 # 실측: 「경찰청 수사자료 분석 솔루션」 건이 8개 클러스터로 쪼개져 상위를
 # 도배했다. 제목쌍 유사도는 0.21~0.28 이라 임계값을 낮추면(0.35) 다른 것까지
 # 뭉개진다(클러스터 167→95). 그래서 묶는 대신 고를 때 걸러낸다.
-_STOP = {
-    "인공지능", "ai", "생성형", "기반", "활용", "도입", "개발", "완료", "추진",
-    "공개", "발표", "운영", "지원", "확대", "구축", "시스템", "서비스", "기술",
-    "위한", "통해", "대한", "관련", "이번", "올해", "전국", "국내", "최초",
-}
+    stop = {str(x).lower() for x in (load().lex('stop_diversify') or [])}
+    return {w for w in words if w not in stop and len(w) >= 2}
+
+
+def diversify(clusters: List[Cluster], take: int, overlap: int = 2) -> List[Cluster]:
+    """점수 순으로 훑되, 이미 고른 것과 같은 사건으로 보이면 건너뛴다.
+
+    뜻을 지닌 낱말이 overlap 개 이상 겹치면 같은 사건으로 본다.
+    한 사건을 여러 매체가 다뤘다는 사실은 이미 매체 수로 점수에 반영돼 있으므로,
+    목록에까지 여러 번 실을 이유가 없다.
+    """
+    picked: List[Cluster] = []
+    marks: List[set] = []
+    for c in clusters:
+        toks = _tokens(c.lead.title)
+        if any(_shared(toks, m) >= overlap for m in marks):
+            continue
+        picked.append(c)
+        marks.append(toks)
+        if len(picked) >= take:
+            break
+    return picked
 
 
 def _tokens(text: str) -> set:
     """제목에서 뜻을 지닌 낱말만 남긴다."""
     words = re.findall(r"[가-힣A-Za-z0-9]{2,}", (text or "").lower())
-    return {w for w in words if w not in _STOP and len(w) >= 2}
+    stop = {str(x).lower() for x in (load().lex('stop_diversify') or [])}
+    return {w for w in words if w not in stop and len(w) >= 2}
 
 
 def diversify(clusters: List[Cluster], take: int, overlap: int = 2) -> List[Cluster]:

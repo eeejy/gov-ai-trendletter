@@ -1,0 +1,73 @@
+# 이 분야의 낱말 사전. config/lexicon.common.yaml 위에 덧씌워진다.
+#
+# 예전엔 이 값들이 전부 scoring.py 에 파이썬 상수로 박혀 있었다.
+# 분야를 바꾸면 병합·핫이슈·키워드가 전부 어긋났다.
+#
+# ⚠ 이 파일을 비워도 파이프라인은 돈다. 벤더 목록이 없으면 범용 패턴
+#   (대문자 + 버전, 예: "OpenBot 2")만으로 이름을 뽑는다.
+
+# --- 제품·모델 이름 ------------------------------------------------------------
+# 같은 사건 병합, 플랫폼 교차 검증, 핫이슈 종합에 전부 쓰인다.
+vendors:
+  [GPT, Claude, Gemini, Llama, Qwen, DeepSeek, GLM, Kimi, Mistral, MiniMax,
+   Grok, Phi, Nova, Titan, "Command R", "Ox Alpha", Sora, Midjourney,
+   "Stable Diffusion", Whisper, Copilot, Cursor, Codex, Devin, opencode,
+   Ollama, vLLM, LangChain,
+   제미나이, 클로드, 딥시크, 라마, 큐원, 지푸, 오픈AI, 앤트로픽, 엔비디아]
+
+# 회사 이름은 제품이 아니다. 이것만으로는 같은 사건으로 묶지 않는다.
+company_only:
+  [앤트로픽, 엔비디아, 오픈AI, 구글, 메타, 마이크로소프트, 네이버, 카카오,
+   삼성, 지푸, anthropic, openai, google, nvidia, meta, microsoft]
+
+# --- 키워드 ------------------------------------------------------------------
+# 이 분야의 낱말이라 불용어에 넣는다 (너무 흔해서 키워드 구실을 못 한다)
+stop_ko:
+  [인공지능, 지능, 개발, 기술, 서비스, 모델, 데이터]
+
+# 개발자 트랙은 영어 제목이라 일반 낱말이 상위를 덮는다.
+# 영어는 '이름' 이거나 이 목록에 있을 때만 키워드로 인정한다.
+allow_en:
+  [agent, agents, opensource, benchmark, inference, rag, multimodal,
+   reasoning, finetuning, quantization, context, coding, robotics, vision,
+   voice, safety, alignment]
+
+# 같은 뜻의 표기를 하나로
+alias:
+  agents: agent
+  models: model
+  tools: tool
+  에이전트: agent
+  오픈소스: opensource
+
+# --- 기술 용어 ----------------------------------------------------------------
+term_alias:
+  agent: 에이전트
+  에이전트: 에이전트
+  llm: LLM
+  대규모언어모델: LLM
+  rag: RAG
+  mcp: MCP
+  소버린: 소버린 AI
+  파운데이션모델: 파운데이션 모델
+  생성형: 생성형 AI
+  멀티모달: 멀티모달
+  오픈소스: 오픈소스
+  파인튜닝: 파인튜닝
+
+term_display:
+  에이전트: AI 에이전트
+
+# 핫이슈 자리는 '이게 뭔지 조사해 정리할' 대상이다. 이미 다 아는 이름은
+# 설명할 것이 없다. 새로 뜬 이름에 자리를 내준다.
+too_broad:
+  [보안, 검증, api, ide, 자동화, 센서, 개인정보, 윤리, 로봇, 드론, 클라우드,
+   데이터센터, 반도체, gpu, 빅데이터,
+   "ai 에이전트", 에이전트, "생성형 ai", llm, 환각, 멀티모달,
+   claude, 클로드, gpt, chatgpt, "챗gpt", openai, 오픈ai, gemini, 제미나이,
+   구글, 네이버, 카카오, 삼성, 마이크로소프트, 앤트로픽, anthropic,
+   copilot, 코파일럿, nvidia, 엔비디아,
+   비전, 모델, 플랫폼, 서비스, 시스템, 솔루션, 기술, 학습]
+
+# 같은 사건 판정에서 무시할 분야 낱말
+stop_diversify: [인공지능, ai, 생성형]

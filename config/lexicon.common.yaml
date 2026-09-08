@@ -1,0 +1,35 @@
+# 분야와 무관한 낱말 사전. 모든 프로파일이 공유한다.
+# 프로파일의 lexicon.yaml 이 이 위에 덧씌워진다.
+
+# 한국어 일반 불용어 — 어느 분야 기사에나 나오는 말
+stop_ko:
+  [위해, 통해, 대한, 있는, 없는, 이번, 관련, 지원, 추진, 사업,
+   국내, 정부, 발표, 확대, 강화, 방안, 계획, 도입, 활용, 구축, 운영, 제공, 시행,
+   예정, 방침, 밝혀, 위한, 대해, 따른, 통한, 최초, 처음, 오는, 지난, 올해, 우리,
+   국민, 기업, 산업, 시장, 분야, 중심, 기반, 신규, 주요, 전체, 대상, 결과, 참여,
+   진행, 협력, 체결, 공개, 출시, 선정, 개최, 실시, 마련, 검토, 논의, 확인, 시작,
+   완료, 성공, 최대, 최고, 급증, 보도자료, 참고자료, 브리핑, 정례, 회의, 간담회,
+   등, 시대, 현장, 방식, 경우, 이후, 이상, 가능, 필요, 예상, 전망, 지난해, 올해도,
+   관계자, 이날, 대비, 수준, 규모, 위원회, 장관, 차관, 청장, 국장, 실장, 과장,
+   팀장, 본격, 본격화, 글로벌, 세계, 상보, 종합, 속보, 단독, 전문가, 관계, 국가,
+   한국, 중국, 미국, 일본, 대신, 통제, 고속도로, 공모, 이슈, 트렌드, 지역, 지방,
+   서울, 부산, 인천, 경기, 이용, 사용, 제작, 공유, 확산, 연구, 조사, 평가]
+
+# 영어 기능어 — 분야 무관
+stop_en:
+  [and, for, to, is, with, in, on, the, of, that, a, an, it, its, by, from, as,
+   at, or, be, are, was, this, these, those, you, your, we, our, they, their,
+   he, she, his, her, not, but, if, then, how, why, what, when, where, who,
+   which, can, will, just, new, now, more, most, all, any, using, use, used,
+   make, made, get, got, has, have, had, do, does, did, about, into, over,
+   own, let, via, vs, no, yes, out, up, down, off, than, very, much, some, other]
+
+# 같은 사건 판정에서 무시할 낱말 (분야 무관한 것만)
+stop_diversify:
+  [기반, 활용, 도입, 개발, 완료, 추진, 공개, 발표, 운영, 지원, 확대, 구축,
+   시스템, 서비스, 기술, 위한, 통해, 대한, 관련, 이번, 올해, 전국, 국내, 최초]
+
+# 달 이름 — 제품 이름이 아니다
+too_broad:
+  [jan, feb, mar, apr, jun, jul, aug, sep, oct, nov, dec,
+   august, january, february, october, november, december]
