@@ -125,8 +125,13 @@ def next_issue_number(year: int) -> int:
     import re
 
     # 초안은 세지 않는다. 초안을 셀 경우 draft 를 다시 돌릴 때마다 호수가 밀린다.
+    # 분야마다 따로 센다. 같이 세면 AI 동향지 17호가 있다는 이유로 국제협력
+    # 동향지가 18호부터 시작한다.
     best = 0
-    pattern = re.compile(r"제%d-(\d+)호" % year)
+    series = str(cfg.prof("profile.series", "")
+                 or cfg.get("issue.series", "") or "").replace(" ", "")
+    pattern = re.compile(r"%s\(?제%d-(\d+)호" % (re.escape(series), year)
+                         if series else r"제%d-(\d+)호" % year)
     from .config import ROOT
 
     for folder in (cfg.path("html_dir"), ROOT):

@@ -118,9 +118,11 @@ def galaxy_data(issue: Issue, cfg: Config) -> dict:
 
 def render(issue: Issue, cfg: Optional[Config] = None) -> str:
     cfg = cfg or load()
-    series = cfg.get("issue.series", "AI 정보동향지")
-    publisher = cfg.get("issue.publisher", "해양경찰청")
-    team = cfg.get("issue.team", "인공지능전환팀")
+    # 동향지 이름은 분야가, 기관·부서는 앱 전역이 정한다.
+    series = (cfg.prof("profile.series", "")
+              or cfg.get("issue.series", "") or "정보동향지")
+    publisher = cfg.get("issue.publisher", "")
+    team = cfg.get("issue.team", "")
     return _env().get_template("issue.html.j2").render(
         fonts=fonts_for(issue, cfg),
         issue=issue,

@@ -515,7 +515,9 @@ def polish(
         )
         return i, llm.draft_item(payload, slot=item.no - 1)
 
-    say("  · Claude 로 %d개 항목 초안 작성 중…" % len(targets))
+    from . import providers
+    _who = providers.LABELS.get((cfg or load()).get("llm.provider", "claude_cli"), "모델")
+    say("  · %s 로 %d개 항목 초안 작성 중…" % (_who, len(targets)))
     # 8건이면 3명으로는 세 바퀴를 돈다. 서로 다른 항목이라 함께 돌려도 된다.
     workers = int(cfg.get("llm.workers", 5))
     with ThreadPoolExecutor(max_workers=max(1, min(workers, len(targets)))) as pool:

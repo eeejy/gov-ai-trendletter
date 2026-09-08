@@ -531,7 +531,7 @@ def cmd_doctor(args) -> int:
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="trendletter", description="AI 정보동향지 반자동화")
+    p = argparse.ArgumentParser(prog="trendletter", description="정보동향지 반자동화")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("collect", help="수집만 실행")

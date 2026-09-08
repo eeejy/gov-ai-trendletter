@@ -159,7 +159,8 @@ def state():
         "org": {
             "publisher": cfg.get("issue.publisher", ""),
             "team": cfg.get("issue.team", ""),
-            "series": cfg.get("issue.series", ""),
+            "series": (prof.get("profile") or {}).get(
+                "series", cfg.get("issue.series", "")),
             "name": (prof.get("profile") or {}).get("name", ""),
             "subject": (prof.get("profile") or {}).get("subject", ""),
         },
@@ -281,15 +282,18 @@ def save_org():
     cfg = load()
     st = _read(CONFIG_DIR / "settings.yaml")
     st.setdefault("issue", {})
-    for k in ("publisher", "team", "series"):
+    # 기관·부서는 앱 전역이다. 분야를 바꿔도 발행 기관은 같다.
+    for k in ("publisher", "team"):
         if k in d:
             st["issue"][k] = str(d[k]).strip()
+    # 동향지 이름은 분야마다 다르다. 전역에 두면 분야를 바꿔도 제목이 안 바뀐다.
+    st.get("issue", {}).pop("series", None)
     _write(CONFIG_DIR / "settings.yaml", st)
 
     path = _profile_path(cfg.profile_id, "profile.yaml")
     prof = _read(path)
     prof.setdefault("profile", {})
-    for k in ("name", "subject"):
+    for k in ("name", "subject", "series"):
         if k in d:
             prof["profile"][k] = str(d[k]).strip()
     _write(path, prof)

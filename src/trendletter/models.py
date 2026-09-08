@@ -185,7 +185,16 @@ class Issue:
 
     @property
     def slug(self) -> str:
-        return "AI정보동향지(제%d-%d호)" % (self.year, self.number)
+        """파일 이름. 동향지 이름은 분야가 정한다.
+
+        예전엔 "AI정보동향지" 가 코드에 박혀 있었다. 국제협력 호를 만들어도
+        파일 이름이 AI정보동향지로 나왔다.
+        """
+        from .config import load
+        cfg = load()
+        name = str(cfg.prof("profile.series", "")
+                   or cfg.get("issue.series", "") or "정보동향지")
+        return "%s(제%d-%d호)" % (name.replace(" ", ""), self.year, self.number)
 
     def to_dict(self) -> Dict[str, Any]:
         return {

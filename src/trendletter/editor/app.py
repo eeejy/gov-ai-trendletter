@@ -133,6 +133,9 @@ def index():
         "editor.html",
         sources=cfg.sources,
         settings=cfg.settings,
+        series=(cfg.prof("profile.series", "")
+                or cfg.get("issue.series", "") or "정보동향지"),
+        profile_id=cfg.profile_id,
         field_labels=field_labels(),
         track_ko=lambda k: track_ko().get(k, k),
         role_ko=lambda k: ROLE_KO.get(k, k),
