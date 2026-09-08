@@ -37,19 +37,35 @@ jobs:
       - name: 실행 파일 만들기
         run: pyinstaller --noconfirm --clean installer/trendletter.spec
 
+      - name: 제대로 나왔는지 확인
+        shell: pwsh
+        run: |
+          # 폴더 이름이 한글이라 러너의 코드페이지에 따라 경로가 어긋날 수 있다.
+          # 이름을 적지 말고 찾아 쓴다.
+          $dir = Get-ChildItem dist -Directory | Select-Object -First 1
+          if (-not $dir) { throw "dist 에 아무것도 없습니다" }
+          $exe = Get-ChildItem $dir.FullName -Filter *.exe | Select-Object -First 1
+          if (-not $exe) { throw "실행 파일이 없습니다" }
+          Write-Host "만들어짐: $($exe.FullName)  ($([math]::Round($exe.Length/1MB,1)) MB)"
+          # 비밀 파일이 딸려 갔는지 본다. 한 번이라도 새면 되돌릴 수 없다.
+          $leak = Get-ChildItem $dir.FullName -Recurse -Filter secrets.yaml
+          if ($leak) { throw "secrets.yaml 이 배포물에 들어 있습니다" }
+          "BUILD_DIR=$($dir.FullName)" | Out-File -Append $env:GITHUB_ENV -Encoding utf8
+
       - name: 압축
-        run: Compress-Archive -Path "dist/동향지/*" -DestinationPath "동향지-windows.zip"
+        shell: pwsh
+        run: Compress-Archive -Path "$env:BUILD_DIR/*" -DestinationPath "trendletter-windows.zip"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: 동향지-windows
-          path: 동향지-windows.zip
+          name: trendletter-windows
+          path: trendletter-windows.zip
 
       - name: 릴리스에 올리기
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: 동향지-windows.zip
+          files: trendletter-windows.zip
           body: |
             내려받아 압축을 풀고 `동향지.exe` 를 실행하세요.
             파이썬은 필요 없습니다.
