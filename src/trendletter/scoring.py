@@ -574,7 +574,8 @@ def explain(cluster: Cluster, cfg: Config, rank_: int = 0, total: int = 0) -> Li
     }
     for g in groups[:2]:
         out.append(label.get(g, g))
-    work = (cluster.onto or {}).get("업무 분야") or []
+    work = (cluster.onto or {}).get(
+        (load().ontology.get("meta") or {}).get("work_axis", "업무 분야")) or []
     if work and not groups:
         out.append("업무 연관 (%s)" % " · ".join(work[:2]))
 
@@ -709,7 +710,8 @@ def tech_keywords(clusters: List[Cluster], cfg: Config, limit: int = 5) -> List[
 
     # 온톨로지 기술·도구 축의 낱말을 해설 대상으로 인정한다
     tech_terms = set()
-    for group in ((cfg.ontology.get("axes") or {}).get("기술·도구") or {}).values():
+    for group in ((cfg.ontology.get("axes") or {}).get(
+            (cfg.ontology.get("meta") or {}).get("tech_axis", "기술·도구")) or {}).values():
         for kw in group:
             tech_terms.add(str(kw).lower())
 

@@ -13,7 +13,7 @@ from .collectors import build
 from .config import Config, load
 from .dedupe import cluster, merge_by_entity, near_duplicates, similarity
 from .http import Fetcher
-from .models import FIELD_LABELS, Article, Cluster, Issue, Item
+from .models import Article, Cluster, Issue, Item, field_label
 from .scoring import (entities, entity_platforms, explain, is_ai_related, is_product,
                       keywords, newsiness, rank, select, tech_keywords)
 
@@ -144,8 +144,9 @@ def _impact(cl: Cluster) -> str:
 
 def _audience(cl: Cluster) -> str:
     onto = cl.onto or {}
-    work = onto.get("업무 분야") or []
-    plan = onto.get("정책·사업") or []
+    _ax = (load().ontology.get("meta") or {})
+    work = onto.get(_ax.get("work_axis", "업무 분야")) or []
+    plan = onto.get(_ax.get("plan_axis", "정책·사업")) or []
     if work and any(w != "행정·기획" for w in work):
         return "전 직원"
     if "전략·계획" in plan or "법·제도" in plan:
@@ -190,9 +191,10 @@ def _draft_notes(cl: Cluster) -> dict:
     담당자가 지우고 쓰기보다 고쳐 쓰도록 한다. 어느 쪽이 맞는지는 사람이 고른다.
     """
     onto = cl.onto or {}
-    works = onto.get("업무 분야") or []
-    techs = onto.get("기술·도구") or []
-    orgs = onto.get("기관") or []
+    _ax = (load().ontology.get("meta") or {})
+    works = onto.get(_ax.get("work_axis", "업무 분야")) or []
+    techs = onto.get(_ax.get("tech_axis", "기술·도구")) or []
+    orgs = onto.get(_ax.get("org_axis", "기관")) or []
 
     work = works[0] if works else "관련"
     tech = techs[0] if techs else "해당 기술"
@@ -214,7 +216,7 @@ def to_item(cl: Cluster, no: int) -> Item:
             body.append(" - (%s) %s" % (extra.source_name, extra.summary.strip()[:120]))
     return Item(
         no=no,
-        field_label=FIELD_LABELS.get(lead.track, "기관 동향"),
+        field_label=field_label(lead.track),
         audience=_audience(cl),
         impact=_impact(cl),
         title=lead.title,
@@ -337,10 +339,6 @@ def llm_rerank(clusters: List[Cluster], cfg: Config,
         llm._load_prompt("select_rank.md")
         .replace("{{DAYS}}", str(cfg.get("collect.days", 7)))
         .replace("{{TOTAL_MAX}}", str(cfg.get("compose.total_max", 6)))
-        .replace("{{POLICY_MIN}}", str(quota.get("policy", [3, 4])[0]))
-        .replace("{{POLICY_MAX}}", str(quota.get("policy", [3, 4])[1]))
-        .replace("{{INDUSTRY_MIN}}", str(quota.get("industry", [2, 3])[0]))
-        .replace("{{INDUSTRY_MAX}}", str(quota.get("industry", [2, 3])[1]))
         .replace("{{CANDIDATES_JSON}}", json.dumps(payload, ensure_ascii=False, indent=1))
     )
     try:
@@ -677,7 +675,7 @@ def _summary(articles, raw_clusters, passed, chosen) -> Dict[str, Any]:
     """'무엇을 얼마나 보고 무엇을 골랐는지' 를 한눈에 보여줄 값."""
     from collections import Counter
 
-    label = {"policy": "정책", "industry": "산업", "dev": "개발자"}
+    label = {t["key"]: t.get("label", t["key"]) for t in load().tracks()}
     by_track = Counter(c.lead.track for c in passed)
     picked_track = Counter(c.lead.track for c in chosen)
     return {
@@ -692,7 +690,7 @@ def _summary(articles, raw_clusters, passed, chosen) -> Dict[str, Any]:
                 "issues": by_track.get(k, 0),
                 "picked": picked_track.get(k, 0),
             }
-            for k in ("policy", "industry", "dev")
+            for k in load().track_keys()
         ],
         "merged": sum(1 for c in passed if len(c.articles) > 1),
         "multi_outlet": sum(1 for c in chosen if len(c.outlets) > 1),

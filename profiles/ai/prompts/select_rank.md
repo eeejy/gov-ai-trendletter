@@ -58,8 +58,7 @@
 
 ## 구성 요건
 
-- AI 정책 {{POLICY_MIN}}~{{POLICY_MAX}}건
-- AI 산업·도구 {{INDUSTRY_MIN}}~{{INDUSTRY_MAX}}건
+{{TRACK_QUOTAS}}
 - 전체 {{TOTAL_MAX}}건 이내
 - 같은 기관·같은 주제가 3건 이상 몰리지 않게 한다.
 

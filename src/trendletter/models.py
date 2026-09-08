@@ -7,15 +7,25 @@ from dataclasses import dataclass, field, asdict
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-TRACKS = ("policy", "industry", "dev")
+def tracks() -> tuple:
+    """트랙 목록. 분야가 정한다 (profiles/<분야>/profile.yaml)."""
+    from .config import load
+    return tuple(load().track_keys())
 
-# PDF 서식의 머리표 값과 1:1로 대응한다.
-FIELD_LABELS = {
-    "policy": "기관 동향",
-    "industry": "산업 동향",
-    "dev": "기술 동향",
-    "internal": "직접 개발형",
-}
+
+def field_label(track: str, default: str = "기관 동향") -> str:
+    """트랙의 발행물 표기. 예전엔 사전이 코드에 박혀 있었다."""
+    from .config import load
+    return load().track(track).get("field_label") or default
+
+
+def field_labels() -> list:
+    from .config import load
+    out = [t.get("field_label") for t in load().tracks() if t.get("field_label")]
+    out.append("직접 개발형")          # 사람이 직접 넣는 항목
+    return list(dict.fromkeys(out))
+
+
 AUDIENCES = ("전 직원", "사업기획", "정책기획", "현장부서")
 IMPACTS = ("높음", "중간", "낮음")
 NOTE_KINDS = ("시사점", "향후계획")

@@ -14,7 +14,9 @@ from typing import Any, Dict, List, Optional
 
 from .config import ROOT, load
 
-PROMPT_DIR = ROOT / "prompts"
+# 분야마다 말투와 예문이 다르다. 프로파일에 있으면 그것을 쓰고,
+# 없으면 공통 뼈대를 쓴다. 새 분야는 공통을 복사해 고쳐 쓰면 된다.
+COMMON_PROMPTS = ROOT / "prompts"
 
 
 class LlmUnavailable(RuntimeError):
@@ -26,10 +28,29 @@ def available() -> bool:
 
 
 def _load_prompt(name: str) -> str:
-    path = PROMPT_DIR / name
-    if not path.exists():
-        raise LlmUnavailable("프롬프트 파일이 없습니다: %s" % path)
-    return path.read_text(encoding="utf-8")
+    cfg = load()
+    for path in (cfg.profile_dir / "prompts" / name, COMMON_PROMPTS / name):
+        if path.exists():
+            return _fill(path.read_text(encoding="utf-8"), cfg)
+    raise LlmUnavailable(
+        "프롬프트 파일이 없습니다: %s (분야 %s)" % (name, cfg.profile_id))
+
+
+def _fill(text: str, cfg) -> str:
+    """어느 프롬프트에나 쓸 수 있는 자리표시자를 채운다."""
+    quotas = "\n".join(
+        "- %s %d~%d건" % (t.get("label", t["key"]), *cfg.quota(t["key"]))
+        for t in cfg.tracks() if cfg.quota(t["key"])[1] > 0)
+    for key, val in {
+        "{{SUBJECT}}": cfg.prof("profile.subject", ""),
+        "{{SERIES}}": cfg.prof("profile.series", ""),
+        "{{PUBLISHER}}": cfg.get("issue.publisher", ""),
+        "{{TEAM}}": cfg.get("issue.team", ""),
+        "{{TRACK_QUOTAS}}": quotas,
+        "{{TOTAL_MAX}}": str(cfg.get("compose.total_max", 6)),
+    }.items():
+        text = text.replace(key, str(val))
+    return text
 
 
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.S)

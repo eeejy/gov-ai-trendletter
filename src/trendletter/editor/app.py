@@ -25,7 +25,7 @@ from flask import Flask, jsonify, render_template, request, send_file
 
 from .. import llm, pipeline, store
 from ..config import load
-from ..models import FIELD_LABELS, Article, Cluster, Issue, Item
+from ..models import Article, Cluster, Issue, Item, field_labels
 from ..render import write
 
 # ── 진행 상태 ──────────────────────────────────────────────
@@ -104,8 +104,12 @@ def _current() -> Issue:
 
 # 설정 파일의 영문 분류를 화면에서는 우리말로 보여준다.
 # policy/primary 같은 배지는 처음 보는 담당자에게 아무 뜻도 전하지 못한다.
-TRACK_KO = {"policy": "정책·공공", "industry": "산업", "dev": "개발자"}
-ROLE_KO = {"primary": "일반", "must": "우리 기관", "verify": "교차 확인"}
+# 트랙 표기는 분야가 정한다
+def track_ko():
+    from ..config import load
+    return {t["key"]: t.get("label", t["key"]) for t in load().tracks()}
+ROLE_KO = {"primary": "일반", "must": "우리 기관", "verify": "교차 확인",
+           "discover": "새 소식 발굴"}   # discover 가 빠져 원문이 노출됐다
 
 
 @app.get("/")
@@ -115,8 +119,8 @@ def index():
         "editor.html",
         sources=cfg.sources,
         settings=cfg.settings,
-        field_labels=list(dict.fromkeys(FIELD_LABELS.values())),
-        track_ko=lambda k: TRACK_KO.get(k, k),
+        field_labels=field_labels(),
+        track_ko=lambda k: track_ko().get(k, k),
         role_ko=lambda k: ROLE_KO.get(k, k),
     )
 

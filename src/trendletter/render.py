@@ -14,6 +14,12 @@ from .models import Issue
 TEMPLATE_DIR = ROOT / "templates"
 
 
+def _first_track() -> str:
+    from .config import load
+    keys = load().track_keys()
+    return keys[0] if keys else "policy"
+
+
 def body_part(line: str) -> dict:
     """본문 한 줄을 줄머리 기호와 본문으로 나눈다.
 
@@ -82,18 +88,19 @@ def galaxy_data(issue: Issue, cfg: Config) -> dict:
             {
                 "title": title[:60],
                 "source": arts[0].get("source_name", ""),
-                "track": arts[0].get("track", "industry"),
+                "track": arts[0].get("track", _first_track()),
                 "score": round(float(c.get("score") or 0), 1),
             }
         )
 
     # 트랙별 수집 건수 — 성운에서 색으로 구분하므로 범례에 함께 쓴다
-    by_track = {"policy": 0, "industry": 0, "dev": 0}
+    from .config import load
+    by_track = {k: 0 for k in load().track_keys()}
     for c in issue.meta.get("candidates", []):
         arts = c.get("articles") or []
         if arts:
-            by_track[arts[0].get("track", "industry")] = (
-                by_track.get(arts[0].get("track", "industry"), 0) + 1
+            by_track[arts[0].get("track", _first_track())] = (
+                by_track.get(arts[0].get("track", _first_track()), 0) + 1
             )
 
     return {
