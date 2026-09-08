@@ -1,0 +1,28 @@
+# 이 분야엔 '제품·모델 이름' 이라는 개념이 없다.
+#
+# **vendors 를 비워 둔다.** 그래도 파이프라인은 돈다 — 범용 패턴(대문자+버전)만
+# 남고, 같은 사건 병합은 제목 유사도로만 이뤄진다.
+# 낱말 사전이 비어도 안 죽는지 확인하는 자리이기도 하다.
+
+vendors: []
+company_only: []
+
+stop_ko: [국제, 협력, 지원, 사업, 국가, 정부]
+
+allow_en: [oda, sdg, sdgs, multilateral, bilateral, grant, loan, partnership]
+
+alias: {}
+
+term_alias:
+  oda: ODA
+  공적개발원조: ODA
+  mou: MOU
+  양해각서: MOU
+  sdg: SDGs
+  지속가능발전목표: SDGs
+
+term_display: {}
+
+too_broad: [협력, 지원, 사업, 국가, 정부, 회의, 방문, 면담, 협의]
+
+stop_diversify: [국제, 협력, 지원]

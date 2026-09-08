@@ -1,0 +1,64 @@
+# 국제협력 수집원.
+#
+# 둘 다 이미 있던 범용 수집기다. 새로 만든 파서가 없다 —
+#   koreakr_search  부처코드 + 검색어만 바꾸면 어느 부처든 본다
+#   google_news     검색어만 바꾸면 된다
+# 기관 게시판(govboard)이나 RSS 를 더 붙이려면 params 의 url 만 적으면 된다.
+
+sources:
+  - id: mofa
+    name: 외교부
+    track: policy
+    role: must
+    collector: koreakr_search
+    enabled: true
+    weight: 1.6
+    params:
+      depts: [외교부]
+      queries: [국제협력, 개발협력, ODA, 공적개발원조]
+
+  - id: moef_edcf
+    name: 기획재정부(대외경제협력)
+    track: policy
+    role: primary
+    collector: koreakr_search
+    enabled: true
+    weight: 1.4
+    params:
+      depts: [기획재정부]
+      queries: [대외경제협력기금, EDCF, 개발협력, ODA]
+
+  - id: peer_ministries
+    name: 타부처 국제협력
+    track: policy
+    role: verify
+    collector: koreakr_search
+    enabled: true
+    weight: 1.0
+    params:
+      depts: [산업통상부, 교육부, 환경부, 보건복지부, 농림축산식품부]
+      queries: [국제협력, 개발협력, ODA]
+
+  - id: news_multilateral
+    name: 뉴스 검색(다자기구)
+    track: multilateral
+    role: primary
+    collector: google_news
+    enabled: true
+    weight: 1.0
+    params:
+      queries:
+        - q: "(UN OR 유엔 OR OECD OR 세계은행 OR ADB) (한국 OR 대한민국) (개발협력 OR ODA OR 분담금)"
+        - q: "(국제개발협력위원회 OR 공적개발원조 OR ODA 예산)"
+
+  - id: news_partner
+    name: 뉴스 검색(협력국)
+    track: partner
+    role: primary
+    collector: google_news
+    enabled: true
+    weight: 1.0
+    params:
+      queries:
+        - q: "(KOICA OR 코이카 OR 한국국제협력단) (사업 OR 지원 OR 협력)"
+        - q: "(베트남 OR 캄보디아 OR 인도네시아 OR 몽골 OR 에티오피아) 한국 (ODA OR 개발협력 OR 무상원조)"
