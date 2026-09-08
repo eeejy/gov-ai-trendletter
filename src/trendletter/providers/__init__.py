@@ -39,6 +39,15 @@ def _load(name: str):
 
 NAMES = ("claude_cli", "anthropic", "openai", "ollama", "gemini")
 
+# 못 쓸 때 무엇을 하면 되는지. doctor 와 설정 화면이 같은 문구를 쓴다.
+HINTS = {
+    "claude_cli": "npm i -g @anthropic-ai/claude-code 로 설치한 뒤 claude 로 로그인",
+    "anthropic": "console.anthropic.com 에서 키를 받아 설정 화면 ⑥ 에 넣으세요",
+    "openai": "platform.openai.com 에서 키를 받아 설정 화면 ⑥ 에 넣으세요",
+    "ollama": "ollama.com 에서 설치하고 ollama serve 로 띄운 뒤 모델을 하나 받으세요",
+    "gemini": "aistudio.google.com 에서 키를 받아 설정 화면 ⑥ 에 넣으세요",
+}
+
 LABELS = {
     "claude_cli": "Claude Code (설치된 CLI)",
     "anthropic": "Claude (Anthropic API)",
@@ -58,7 +67,7 @@ def status_all() -> List[Dict[str, Any]]:
     """화면에 뿌릴 제공자 목록과 각각의 상태."""
     out = []
     for n in NAMES:
-        row = {"name": n, "label": LABELS[n]}
+        row = {"name": n, "label": LABELS[n], "hint": HINTS.get(n, "")}
         try:
             p = get(n)
             row.update(p.status())

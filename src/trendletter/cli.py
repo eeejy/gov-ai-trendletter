@@ -408,9 +408,27 @@ def cmd_doctor(args) -> int:
         _chk(False, "fonttools+brotli", "없음 — 기본 글꼴로 렌더됩니다", "선택 사항입니다")
 
     _say("\n[2] 설정 파일")
-    for rel, need in (("config/settings.yaml", True), ("config/sources.yaml", True),
-                      ("config/ontology.yaml", True), ("config/korea_kr_depts.yaml", True),
-                      ("config/secrets.yaml", False)):
+    from trendletter.config import PROFILES_DIR, profiles as _profiles
+    try:
+        _cfg = load()
+        pid = _cfg.profile_id
+    except Exception as exc:                               # noqa: BLE001
+        bad += 1
+        _chk(False, "분야", str(exc)[:80], "python run.py editor --setup")
+        pid = None
+    have = _profiles()
+    _chk(bool(have), "분야 목록", ", ".join(have) or "없음")
+    if pid:
+        _chk(True, "지금 쓰는 분야", pid)
+    checks = [("config/settings.yaml", True), ("config/korea_kr_depts.yaml", True),
+              ("config/lexicon.common.yaml", False), ("config/secrets.yaml", False)]
+    if pid:
+        rel_prof = PROFILES_DIR.relative_to(root) if PROFILES_DIR.is_relative_to(root) \
+                   else PROFILES_DIR
+        for name, need in (("profile.yaml", True), ("sources.yaml", True),
+                           ("ontology.yaml", True), ("lexicon.yaml", False)):
+            checks.append(("%s/%s/%s" % (rel_prof, pid, name), need))
+    for rel, need in checks:
         f = root / rel
         if f.exists():
             try:
@@ -423,9 +441,11 @@ def cmd_doctor(args) -> int:
         elif need:
             bad += 1
             _chk(False, rel, "없음")
-        else:
-            _chk(False, rel, "없음 — 텔레그램 안 씀",
+        elif rel.endswith("secrets.yaml"):
+            _chk(False, rel, "없음 — 텔레그램·API 키 안 씀",
                  "config/secrets.example.yaml 를 복사해서 채우세요")
+        else:
+            _chk(False, rel, "없음 — 없어도 됩니다")
 
     _say("\n[3] 쓰기 권한")
     for rel in ("data/raw", "data/drafts", "data/issues", "data/cache"):
@@ -439,18 +459,24 @@ def cmd_doctor(args) -> int:
             bad += 1
             _chk(False, rel, str(exc))
 
-    _say("\n[4] Claude CLI (초안 작성)")
-    exe = shutil.which("claude")
-    if exe:
-        try:
-            out = subprocess.run([exe, "--version"], capture_output=True,
-                                 text=True, timeout=20)
-            _chk(True, "claude", out.stdout.strip() or exe)
-        except Exception as exc:  # noqa: BLE001
-            _chk(False, "claude", "응답 없음: %s" % exc)
-    else:
-        _chk(False, "claude", "없음 — 초안이 규칙 기반으로만 작성됩니다",
-             "npm i -g @anthropic-ai/claude-code")
+    _say("\n[4] 초안 모델")
+    from trendletter import providers
+    picked = load().get("llm.provider", "claude_cli")
+    all_st = providers.status_all()
+    for st in all_st:
+        mine = st["name"] == picked
+        # 안 고른 제공자가 준비 안 된 건 잘못이 아니다. X 로 표시하면 겁만 준다.
+        if mine:
+            _chk(st["ready"], "→ " + st["label"],
+                 st.get("detail") or "이 모델로 초안을 씁니다",
+                 "" if st["ready"] else st.get("hint") or "")
+        else:
+            _say("  %s   %-26s %s" % ("··" if st["ready"] else "  ", st["label"],
+                                      "쓸 수 있음" if st["ready"] else "설정 안 함"))
+    if not any(s["ready"] and s["name"] == picked for s in all_st):
+        _say("      → 지금 고른 모델(%s)을 쓸 수 없습니다. 초안이 규칙 기반 뼈대로만"
+             " 나옵니다." % picked)
+        _say("        python run.py editor --setup  에서 다른 모델을 고를 수 있습니다.")
 
     _say("\n[5] 텔레그램")
     cfg = load()
@@ -468,9 +494,26 @@ def cmd_doctor(args) -> int:
 
     _say("\n[6] 수집원 연결 (대표 3곳)")
     import urllib.request
-    for name, url in (("해양경찰청", "https://www.kcg.go.kr"),
-                      ("korea.kr", "https://www.korea.kr"),
-                      ("서울 AI 플랫폼", "https://seoulai.saif.or.kr")):
+    from urllib.parse import urlsplit
+    probes = []
+    try:
+        for s in load().enabled_sources():
+            for val in (s.get("params") or {}).values():
+                cand = val if isinstance(val, str) else (val[0] if isinstance(val, list)
+                                                         and val and isinstance(val[0], str)
+                                                         else "")
+                if str(cand).startswith("http"):
+                    parts = urlsplit(str(cand))
+                    probes.append((s.get("name", s["id"]),
+                                   "%s://%s" % (parts.scheme, parts.netloc)))
+                    break
+    except Exception:                                      # noqa: BLE001
+        pass
+    seen_host = set()
+    probes = [p for p in probes if not (p[1] in seen_host or seen_host.add(p[1]))][:3]
+    if not probes:
+        probes = [("korea.kr", "https://www.korea.kr")]
+    for name, url in probes:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=8) as r:
