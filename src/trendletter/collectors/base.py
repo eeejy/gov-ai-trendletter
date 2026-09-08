@@ -25,6 +25,44 @@ class Collector:
         raise NotImplementedError
 
     # --- 도우미 ---------------------------------------------------------
+    def fetch_summary(self, article: Article) -> str:
+        """목록만으로 본문이 안 오는 수집원이 뒤늦게 요약을 가져오는 자리.
+
+        수집 때 본문까지 다 받으면 느리다. 그래서 초안에 뽑힌 항목만 나중에
+        채운다. 예전엔 이 일을 pipeline.py 가 특정 수집원의 주소와 id 를 직접
+        알고 처리했다 — 수집원 하나가 바뀌면 파이프라인을 고쳐야 했다.
+        """
+        return ""
+
+    def keep(self, text: str) -> bool:
+        """수집기 단계에서 이 글을 받을지.
+
+        예전엔 수집기 코드 안에 AI 낱말이 박혀 있었다. 그러면 분야를 국제협력으로
+        바꿔도 해커뉴스는 계속 AI 글만 가져온다 — 설정을 아무리 고쳐도.
+        이제 수집원의 params.include_pattern 이 정하고, 그것도 없으면 분야의
+        핵심어를 쓴다. 둘 다 없으면 거르지 않는다.
+        """
+        rx = self._include_rx()
+        return True if rx is None else bool(rx.search(text or ""))
+
+    def _include_rx(self):
+        if not hasattr(self, "_inc_rx"):
+            pat = self.params.get("include_pattern")
+            if not pat:
+                from ..config import load
+                cfg = load()
+                parts = [str(x) for x in (cfg.prof("filter.core") or [])]
+                en = cfg.prof("filter.core_en")
+                if en:
+                    parts.append(re.sub(r"\s*\n\s*", "", str(en)))
+                pat = "|".join(p for p in parts if p)
+            flat = re.sub(r"\s*\n\s*", "", str(pat or "")).strip()
+            try:
+                self._inc_rx = re.compile(flat, re.I) if flat else None
+            except re.error:
+                self._inc_rx = None
+        return self._inc_rx
+
     def make(self, title: str, url: str, **kw) -> Article:
         return Article(
             source_id=self.source["id"],

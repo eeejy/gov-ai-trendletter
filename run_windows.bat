@@ -1,6 +1,9 @@
 @echo off
 chcp 65001 >nul
-REM Windows 운영용 실행 파일. 바탕화면 바로가기로 만들어 사용한다.
+setlocal enabledelayedexpansion
+REM 운영용 실행 파일. 바탕화면 바로가기로 만들어 쓴다.
+REM 괄호 블록 안에서는 %n% 가 실행 전에 펼쳐진다. 그래서 메뉴를 블록 밖으로
+REM 빼고 !n! 를 쓴다. 예전 판은 무엇을 골라도 인자 없이 실행됐다.
 cd /d "%~dp0"
 
 if not exist .venv (
@@ -10,26 +13,41 @@ if not exist .venv (
   .venv\Scripts\python.exe -m pip install -r requirements.txt || goto :err
 )
 
-if "%~1"=="" (
-  echo ===========================================
-  echo   AI 정보동향지 반자동화
-  echo ===========================================
-  echo   1^) 수집원 점검
-  echo   2^) 이번 주 초안 만들기
-  echo   3^) 편집기 열기
-  echo   4^) 발행
-  echo ===========================================
-  set /p n="번호 선택: "
-  if "!n!"=="" set n=3
-  if "%n%"=="1" set ARGS=sources
-  if "%n%"=="2" set ARGS=draft
-  if "%n%"=="3" set ARGS=editor
-  if "%n%"=="4" set ARGS=publish
-) else (
-  set ARGS=%*
+if not "%~1"=="" (
+  set "ARGS=%*"
+  goto :run
 )
 
-.venv\Scripts\python.exe run.py %ARGS%
+echo ===========================================
+echo   정보동향지 반자동화
+echo ===========================================
+echo   1^) 설정 열기        분야·수집원·키워드
+echo   2^) 준비 상태 점검
+echo   3^) 수집원 점검
+echo   4^) 이번 호 초안 만들기
+echo   5^) 편집기 열기      (기본)
+echo   6^) 발행
+echo ===========================================
+set "n="
+set /p n="번호 선택 [5]: "
+if "!n!"=="" set "n=5"
+
+if "!n!"=="1" set "ARGS=editor --setup"
+if "!n!"=="2" set "ARGS=doctor"
+if "!n!"=="3" set "ARGS=sources"
+if "!n!"=="4" set "ARGS=draft"
+if "!n!"=="5" set "ARGS=editor"
+if "!n!"=="6" set "ARGS=publish"
+
+if not defined ARGS (
+  echo 1~6 중에서 고르세요.
+  pause
+  goto :eof
+)
+
+:run
+.venv\Scripts\python.exe run.py !ARGS!
+if errorlevel 1 pause
 goto :eof
 
 :err

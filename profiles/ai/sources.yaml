@@ -25,7 +25,6 @@ sources:
     params:
       # 2026-08-29 확인: mi=2799 & bbsId=313 이 보도자료 게시판
       url: https://www.kcg.go.kr/kcg/na/ntt/selectNttList.do?mi=2799&bbsId=313
-      view_path: /kcg/na/ntt/selectNttInfo.do?nttSn=
       # 2026-08-30: 2페이지는 pageIndex 가 아니라 currPage 로 넘긴다
       pages: 3
     # 우리 기관. AI 자료가 나오면 반드시 싣는다
@@ -153,6 +152,8 @@ sources:
     params:
       url: "https://zdnet.co.kr/newskey/?lstcode=%EC%9D%B8%EA%B3%B5%EC%A7%80%EB%8A%A5"
       fallback_feed: https://feeds.feedburner.com/zdkorea
+      # 대체 피드는 전체 기사라 이걸로 좁힌다. 예전엔 news.py 에 박혀 있었다.
+      include_pattern: AI|인공지능|LLM|생성형|에이전트|반도체|데이터
       pages: 2
     # 실측 통과율 81%로 가장 높음
     weight: 1.2
@@ -180,6 +181,10 @@ sources:
     collector: hackernews
     enabled: true
     params:
+      # 예전엔 이 정규식이 dev.py 안에 박혀 있었다. 분야를 바꿔도 안 바뀌었다.
+      include_pattern: >-
+        \b(ai|llm|gpt|claude|gemini|llama|agent|rag|transformer|inference|
+        fine.?tun|open.?source model|anthropic|openai|mistral|qwen|deepseek)\b
       min_points: 100
       # Algolia 는 OR 구문을 문자열로 취급한다. 짧은 질의를 여러 번 던진다.
       queries: ["AI", "LLM", "agent", "open source model", "inference"]

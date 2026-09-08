@@ -162,7 +162,7 @@ def cmd_daily(args) -> int:
     if not articles:
         _say("수집된 자료가 없습니다.")
     clusters = pipeline.build_clusters(articles, cfg)
-    pipeline.enrich_bodies(clusters, progress=_say)
+    pipeline.enrich_bodies(clusters, progress=_say, cfg=cfg)
     clusters = pipeline.build_clusters(articles, cfg)
 
     ranked = [c for c in clusters if c.score >= floor]
@@ -339,7 +339,8 @@ def cmd_editor(args) -> int:
     from trendletter.editor.app import run
 
     cfg = load()
-    run(cfg.get("editor.host", "127.0.0.1"), int(cfg.get("editor.port", 8765)))
+    run(cfg.get("editor.host", "127.0.0.1"), int(cfg.get("editor.port", 8765)),
+        setup=bool(getattr(args, "setup", False)))
     return 0
 
 
@@ -541,6 +542,8 @@ def main(argv=None) -> int:
     g.set_defaults(func=cmd_telegram)
 
     e = sub.add_parser("editor", help="로컬 웹 편집기")
+    e.add_argument("--setup", action="store_true",
+                   help="설정 화면부터 연다 (분야·수집원·키워드)")
     e.set_defaults(func=cmd_editor)
 
     dr = sub.add_parser("doctor", help="설치·설정 상태를 한 번에 점검")

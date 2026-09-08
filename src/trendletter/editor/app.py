@@ -564,8 +564,8 @@ def api_blank_item():
     return jsonify(item.to_dict())
 
 
-def run(host: str = "127.0.0.1", port: int = 8765) -> None:
-    url = "http://%s:%d/" % (host, port)
+def run(host: str = "127.0.0.1", port: int = 8765, setup: bool = False) -> None:
+    url = "http://%s:%d/%s" % (host, port, "setup" if setup else "")
     print("로컬 편집기: %s  (Ctrl+C 로 종료)" % url)
     try:
         webbrowser.open(url)

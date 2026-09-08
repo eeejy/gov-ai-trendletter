@@ -219,6 +219,19 @@ class SeoulAiCollector(Collector):
         "overseas": "hmpg_nm_ov",   # 해외
     }
 
+    def fetch_summary(self, article: Article) -> str:
+        """목록에는 요약이 없다. 상세 API 를 따로 두드려 받는다."""
+        keys = article.raw.get("keys") or []
+        if len(keys) < 2 or not keys[0]:
+            return ""
+        import json as _json
+        try:
+            data = _json.loads(self.fetcher.post(
+                self.SUMMARY, [("hmpg_mng_no", keys[0]), ("pst_no", keys[1])]))
+        except Exception:                                  # noqa: BLE001
+            return ""
+        return " ".join((data.get("summary") or "").split())
+
     def collect(self, since: datetime, limit: int) -> List[Article]:
         page_size = min(int(self.params.get("page_size", 100)), 300)
         data = [

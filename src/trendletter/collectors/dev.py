@@ -14,13 +14,6 @@ from urllib.parse import urlencode
 from ..models import Article
 from .base import Collector, clean, within
 
-AI_PAT = re.compile(
-    r"\b(ai|llm|gpt|claude|gemini|llama|agent|rag|transformer|inference|"
-    r"fine.?tun|open.?source model|anthropic|openai|mistral|qwen|deepseek)\b",
-    re.I,
-)
-
-
 class HackerNewsCollector(Collector):
     """Algolia HN API. 인증이 필요 없고 points/comments 를 함께 준다."""
 
@@ -60,7 +53,7 @@ class HackerNewsCollector(Collector):
                 published = datetime.strptime(hit["created_at"][:19], "%Y-%m-%dT%H:%M:%S")
             if not within(published, since):
                 continue
-            if not AI_PAT.search(title):
+            if not self.keep(title):
                 continue
             out.append(
                 self.make(

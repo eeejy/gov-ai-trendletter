@@ -75,6 +75,17 @@ def collect(
 LAST_HEALTH: List[dict] = []
 
 
+def _collectors(cfg: Config, fetcher) -> Dict[str, Any]:
+    """수집원 id → 수집기. 뒤늦게 본문을 채울 때 쓴다."""
+    out = {}
+    for source in cfg.sources:
+        try:
+            out[source["id"]] = build(source, fetcher)
+        except KeyError:
+            pass
+    return out
+
+
 def health_warnings(health: List[dict], days: int = 7) -> List[str]:
     """담당자가 손을 써야 하는 상황만 골라 말한다.
 
@@ -241,16 +252,15 @@ def to_item(cl: Cluster, no: int) -> Item:
 
 def enrich_bodies(clusters: List[Cluster],
                   limit: int = 0,
-                  progress: Optional[Callable[[str], None]] = None) -> int:
+                  progress: Optional[Callable[[str], None]] = None,
+                  cfg: Optional[Config] = None) -> int:
     """순위를 매기기 **전에** 본문이 빈 항목의 본문을 받아 온다.
 
-    서울 AI 플랫폼·Reddit·Hacker News 는 목록에 제목만 준다. 그대로 두면
+    목록에 제목만 주는 수집원이 있다. 그대로 두면
     제목만으로 점수가 매겨져 구조적으로 밀린다(측정: 본문 있는 클러스터의
     순위 중앙값 54위 대 제목뿐 124위). 클러스터 단위로 병렬 수집하면
     65건에 3초쯤 걸린다.
     """
-    import json as _json
-
     say = progress or (lambda m: None)
     todo = [c for c in clusters if not (c.lead.summary or "").strip()]
     if limit:
@@ -259,17 +269,15 @@ def enrich_bodies(clusters: List[Cluster],
         return 0
 
     fetcher = Fetcher()
-    seoul_url = "https://seoulai.saif.or.kr/hmpg/bpst/bpstPostSummary.do"
+    cols = _collectors(cfg or load(), fetcher)
 
     def grab(cl: Cluster) -> int:
         a = cl.lead
         try:
-            if a.source_id == "seoul_ai" and (a.raw.get("keys") or [None])[0]:
-                mng, pst = a.raw["keys"]
-                data = _json.loads(fetcher.post(
-                    seoul_url, [("hmpg_mng_no", mng), ("pst_no", pst)]))
-                text = " ".join((data.get("summary") or "").split())
-            else:
+            # 목록만으로 본문이 안 오는 수집원은 자기가 채우는 법을 안다.
+            own = cols.get(a.source_id)
+            text = own.fetch_summary(a) if own else ""
+            if not text:
                 # 구글 뉴스 주소는 자바스크립트로 넘어가므로 서버에서 원문이
                 # 안 열린다. 긁으면 구글 페이지가 통째로 들어온다.
                 if not a.url or "news.google.com" in a.url:
@@ -406,15 +414,16 @@ def llm_rerank(clusters: List[Cluster], cfg: Config,
 
 
 def fill_summaries(clusters_by_key: Dict[str, Cluster],
-                   progress: Optional[Callable[[str], None]] = None) -> None:
-    """서울 AI 플랫폼 항목의 요약을 뒤늦게 채운다.
+                   progress: Optional[Callable[[str], None]] = None,
+                   cfg: Optional[Config] = None) -> None:
+    """뽑힌 항목의 요약을 뒤늦게 채운다.
 
-    이 소스는 목록에 제목만 있어, 초안을 쓸 때 Claude 에게 줄 재료가 없다.
-    수집 단계에서 전부 받으면 90초가 들고 관문 판정은 바뀌지 않으므로,
-    실제로 뽑힌 항목에 대해서만 가져온다.
+    목록에 제목만 주는 수집원이 있다. 그대로 두면 초안을 쓸 때 모델에게 줄
+    재료가 없다. 수집 단계에서 전부 받으면 90초가 들고 관문 판정은 바뀌지
+    않으므로, 실제로 뽑힌 항목에 대해서만 가져온다.
+
+    무엇을 어떻게 받아 오는지는 수집기가 안다(Collector.fetch_summary).
     """
-    import json
-
     say = progress or (lambda m: None)
     # Cluster 는 해시할 수 없으므로 id 로 중복을 없앤다
     seen_cluster, seen_url = set(), set()
@@ -424,9 +433,7 @@ def fill_summaries(clusters_by_key: Dict[str, Cluster],
             continue
         seen_cluster.add(id(c))
         for a in c.articles:
-            if a.source_id != "seoul_ai" or a.summary or a.url in seen_url:
-                continue
-            if not (a.raw.get("keys") or [None])[0]:
+            if a.summary or a.url in seen_url:
                 continue
             seen_url.add(a.url)
             targets.append(a)
@@ -434,20 +441,21 @@ def fill_summaries(clusters_by_key: Dict[str, Cluster],
         return
 
     fetcher = Fetcher()
-    url = "https://seoulai.saif.or.kr/hmpg/bpst/bpstPostSummary.do"
-    filled = 0
+    cols = _collectors(cfg or load(), fetcher)
+    filled: Dict[str, int] = {}
     for a in targets:
-        mng, pst = a.raw["keys"]
-        try:
-            data = json.loads(fetcher.post(url, [("hmpg_mng_no", mng), ("pst_no", pst)]))
-        except Exception:  # noqa: BLE001
+        own = cols.get(a.source_id)
+        if own is None:
             continue
-        text = " ".join((data.get("summary") or "").split())
+        try:
+            text = own.fetch_summary(a)
+        except Exception:                                  # noqa: BLE001
+            continue
         if text:
             a.summary = text[:700]
-            filled += 1
-    if filled:
-        say("  · 서울 AI 플랫폼 요약 %d건 보충" % filled)
+            filled[a.source_name] = filled.get(a.source_name, 0) + 1
+    for name, n in filled.items():
+        say("  · %s 요약 %d건 보충" % (name, n))
 
 
 def polish(
@@ -473,7 +481,7 @@ def polish(
         return issue
 
     clusters_by_key = clusters_by_key or {}
-    fill_summaries(clusters_by_key, say)
+    fill_summaries(clusters_by_key, say, cfg)
     targets = [
         (i, it)
         for i, it in enumerate(issue.items)
@@ -558,7 +566,7 @@ def make_draft(
     # 순위를 매기기 전에 본문이 빈 항목을 채운다. 제목만으로 점수를 매기면
     # 서울 AI 플랫폼·HN 같은 목록형 수집원이 구조적으로 밀린다.
     if cfg.get("compose.enrich_before_rank", True):
-        enrich_bodies(clusters, progress=progress)
+        enrich_bodies(clusters, progress=progress, cfg=cfg)
         clusters = build_clusters(articles, cfg)     # 채운 본문으로 다시 채점
 
     rule_rank = {id(c): i + 1 for i, c in enumerate(clusters)}

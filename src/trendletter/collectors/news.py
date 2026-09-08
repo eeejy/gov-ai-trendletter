@@ -124,8 +124,8 @@ class ZdnetCollector(Collector):
                 continue
             title = clean(node.title.get_text() if node.title else "")
             desc = _strip_html(node.description.get_text() if node.description else "")
-            # 전체 피드이므로 AI 관련만 남긴다.
-            if not re.search(r"AI|인공지능|LLM|생성형|에이전트|반도체|데이터", title + desc):
+            # 전체 피드라 이 분야 것만 남긴다. 무엇이 이 분야인지는 설정이 정한다.
+            if not self.keep(title + " " + desc):
                 continue
             out.append(
                 self.make(
