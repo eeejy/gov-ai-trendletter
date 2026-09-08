@@ -8,3 +8,9 @@ PyYAML>=6.0
 Flask>=3.0
 fonttools>=4.40      # 표지 글꼴을 쓰이는 글자만 잘라 담기 위해
 brotli>=1.0          # woff2 압축
+
+# 모델 제공자는 쓰는 것만 깔면 된다.
+#   claude_cli  설치 불필요 (Claude Code 가 있으면 됨)
+#   openai/ollama/gemini  requests 만 있으면 됨 (위에 이미 있다)
+#   anthropic   아래를 깐다
+# anthropic>=0.40      # Anthropic API 를 쓸 때만

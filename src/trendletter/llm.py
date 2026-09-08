@@ -1,4 +1,4 @@
-"""Claude Code CLI(`claude -p`) 를 통한 초안 작성.
+"""초안 작성. 어느 모델을 쓸지는 설정이 정한다 (providers/).
 
 별도 API 키를 두지 않고 담당자가 이미 쓰는 Claude Team 계정을 그대로 쓴다.
 기관망에서 CLI 가 없거나 실패해도 파이프라인은 멈추지 않고 규칙 기반 뼈대를 남긴다.
@@ -24,7 +24,12 @@ class LlmUnavailable(RuntimeError):
 
 
 def available() -> bool:
-    return shutil.which(load().get("llm.command", "claude")) is not None
+    """지금 고른 제공자를 쓸 수 있는가."""
+    from . import providers
+    try:
+        return providers.get().available()
+    except Exception:                                 # noqa: BLE001
+        return False
 
 
 def _load_prompt(name: str) -> str:
@@ -79,34 +84,17 @@ def _extract_json(text: str) -> Dict[str, Any]:
 
 
 def run(prompt: str, timeout: Optional[int] = None) -> str:
-    cfg = load()
-    command = cfg.get("llm.command", "claude")
-    if shutil.which(command) is None:
-        raise LlmUnavailable(
-            "%s 명령을 찾을 수 없습니다. Claude Code 를 설치하거나 "
-            "config/settings.yaml 의 llm.enabled 를 false 로 두세요." % command
-        )
+    """고른 제공자에게 물어본다.
 
-    args = [command, "-p", prompt, "--output-format", "text"]
-    model = cfg.get("llm.model")
-    if model:
-        args += ["--model", model]
-
+    파이프라인은 어느 모델이 붙었는지 모른다. Claude CLI 든 GPT 든 내 컴퓨터의
+    Ollama 든 여기서 갈린다.
+    """
+    from . import providers
+    from .providers.base import ProviderError
     try:
-        proc = subprocess.run(
-            args,
-            capture_output=True,
-            text=True,
-            timeout=timeout or int(cfg.get("llm.timeout", 180)),
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise LlmUnavailable("모델 응답이 시간 안에 오지 않았습니다") from exc
-
-    if proc.returncode != 0:
-        raise LlmUnavailable(
-            "claude 실행 실패(코드 %d): %s" % (proc.returncode, (proc.stderr or "")[:300])
-        )
-    return proc.stdout
+        return providers.get().generate(prompt, timeout=timeout)
+    except ProviderError as exc:
+        raise LlmUnavailable(str(exc)) from exc
 
 
 _MARKER = re.compile(r"^\s*(ㅇ|○|-|–|\*|※)\s*")
