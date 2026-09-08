@@ -38,6 +38,7 @@ JSON 만 출력합니다.
   "name": "○○ 동향지",
   "subject": "주제 한 낱말",
   "core": ["핵심어", "..."],
+  "core_en": "영문 낱말 정규식 (국내 자료만 볼 분야면 빈 문자열)",
   "adjacent": ["주변어", "..."],
   "tracks": [
     {"key": "policy", "label": "정책", "field_label": "정책 동향", "min": 3, "max": 5}

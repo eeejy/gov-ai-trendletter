@@ -169,6 +169,11 @@
       <textarea id="adjacent" style="min-height:190px" placeholder="한 줄에 하나씩"></textarea>
       <div class="hint">15~25개쯤. 핵심어와 함께 있을 때 힘을 보탭니다.</div></div>
   </div>
+  <h3>영문 자료용 — 비워도 됩니다</h3>
+  <input id="core_en" placeholder="예: \b(maritime|vessel|coast guard|IMO)\b">
+  <div class="hint">해커뉴스·해외 기관처럼 <b>영어 제목</b>이 들어오는 수집원을 쓸 때만
+    채웁니다. 국내 자료만 본다면 <b>반드시 비우세요</b> — 여기 남아 있으면 화면의
+    핵심어와 상관없이 영문 기사가 통과합니다.</div>
   <div class="row" style="margin-top:14px">
     <label style="width:auto">통과 기준</label>
     <input type="range" id="min_focus_r" min="1" max="8" step="0.5" style="width:200px">
@@ -418,6 +423,7 @@ function render(){
 
  const f=S.filter||{};
  $('#core').value=(f.core||[]).join('\n'); $('#adjacent').value=(f.adjacent||[]).join('\n');
+ $('#core_en').value=f.core_en||'';
  $('#min_focus').value=f.min_focus??3.5; $('#min_focus_r').value=f.min_focus??3.5;
  $('#ance').checked=!!f.adjacent_needs_core; mfHint();
 
@@ -450,6 +456,7 @@ const gather={
  org:()=>({publisher:$('#publisher').value,team:$('#team').value,series:$('#series').value,
            name:$('#pname').value,subject:$('#subject').value}),
  keywords:()=>({core:$('#core').value,adjacent:$('#adjacent').value,
+                core_en:$('#core_en').value,
                 min_focus:+$('#min_focus').value,adjacent_needs_core:$('#ance').checked}),
  tracks:()=>({tracks:$$('#trackbody tr').map(r=>({key:r.querySelector('.tk').value,
    label:r.querySelector('.tl').value,field_label:r.querySelector('.tf').value,
@@ -495,13 +502,19 @@ $('#min_focus').oninput=()=>{$('#min_focus_r').value=$('#min_focus').value;mfHin
 
 /* ---- 시험 -------------------------------------------------------------- */
 $('#kwtest').onclick=async()=>{
-  say('#m-kw','wait','최근 자료로 세어 보는 중…');
+  say('#m-kw','wait','최근 자료로 세어 보는 중… 처음이면 자료를 조금 모으느라 30초쯤 걸립니다.');
   await api('/api/setup/keywords', gather.keywords());
   const r=await api('/api/setup/test/keywords',{});
-  say('#m-kw', r.ok, r.ok
-    ? `${r.raw} 기준 ${r.total}개 중 ${r.passed}개가 통과합니다.\n예: ${(r.sample||[]).slice(0,3).join(' / ')}`
-    : r.error);
-  if(r.ok) clearDirty('kw');
+  if(!r.ok){ clearDirty('kw'); return say('#m-kw',false,r.error); }
+  const pct=Math.round(r.passed/Math.max(1,r.total)*100);
+  const judge = pct<15 ? '너무 좁습니다. 핵심어를 늘리거나 통과 기준을 낮춰 보세요.'
+              : pct>80 ? '너무 넓습니다. 엉뚱한 자료까지 통과합니다.'
+              : '적당합니다.';
+  say('#m-kw', pct>=15&&pct<=80,
+    `${r.raw} 기준 ${r.total}개 중 ${r.passed}개 통과 (${pct}%) — ${judge}`
+    + `\n통과: ${(r.sample||[]).slice(0,2).join(' / ')}`
+    + ((r.dropped||[]).length?`\n걸러짐: ${r.dropped.slice(0,2).join(' / ')}`:''));
+  clearDirty('kw');
 };
 window.testSrc=async btn=>{
   const card=btn.closest('.card'), s=readCard(card);
@@ -557,8 +570,9 @@ $('#rungo').onclick=async()=>{
 let PROP=null;
 const PARTS=[
  ["profile","분야 이름", p=>`${esc(p.name||'')} · 주제 ${esc(p.subject||'')}`],
- ["keywords","키워드", p=>`핵심어 ${(p.core||[]).length}개 · 주변어 ${(p.adjacent||[]).length}개
-   <div class="hint">${esc((p.core||[]).slice(0,12).join(', '))}…</div>`],
+ ["keywords","키워드", p=>`핵심어 ${(p.core||[]).length}개 · 주변어 ${(p.adjacent||[]).length}개`
+   +(p.core_en?` · 영문 <code>${esc(p.core_en).slice(0,40)}</code>`:' · 영문 없음')
+   +`<div class="hint">${esc((p.core||[]).slice(0,12).join(', '))}…</div>`],
  ["sources","수집원", p=>(p.sources||[]).map(s=>
    `<span class="pill">${esc(s.name||s.id)}</span>`).join(' ')],
  ["relevance","관련도", p=>[...(p.relevance||[])].sort((a,b)=>b.weight-a.weight).map(g=>

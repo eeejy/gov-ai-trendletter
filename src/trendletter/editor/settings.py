@@ -166,6 +166,7 @@ def state():
         "filter": {
             "core": list((prof.get("filter") or {}).get("core") or []),
             "adjacent": list((prof.get("filter") or {}).get("adjacent") or []),
+            "core_en": str((prof.get("filter") or {}).get("core_en") or "").strip(),
             "min_focus": (prof.get("filter") or {}).get("min_focus", 3.5),
             "require_topic": (prof.get("filter") or {}).get("require_topic", True),
             "adjacent_needs_core": (prof.get("filter") or {}).get(
@@ -307,6 +308,13 @@ def save_keywords():
         fresh["core"] = _lines(d["core"])
     if "adjacent" in d:
         fresh["adjacent"] = _lines(d["adjacent"])
+    if "core_en" in d:
+        # 빈 값이면 아예 지운다. 남겨 두면 안 보이는 정규식이 관문을 열어 준다.
+        val = " ".join(str(d["core_en"] or "").split())
+        if val:
+            fresh["core_en"] = val
+        elif "core_en" in f:
+            del f["core_en"]
     if "min_focus" in d:
         fresh["min_focus"] = float(d["min_focus"])
     for k in ("require_topic", "adjacent_needs_core"):
@@ -470,13 +478,22 @@ def new_profile():
     if dest.exists():
         return jsonify({"ok": False, "error": "같은 이름의 분야가 이미 있습니다"}), 400
     src = PROFILES_DIR / (str(d.get("from") or load().profile_id))
-    shutil.copytree(src, dest)
+    shutil.copytree(src, dest, ignore=shutil.ignore_patterns(".backup", "__pycache__"))
     prof = _read(dest / "profile.yaml")
     prof.setdefault("profile", {})["id"] = pid
     if d.get("name"):
         prof["profile"]["name"] = str(d["name"])
+    # 앞 분야의 낱말이 그대로 넘어오면 안 되는 것들을 비운다. 남겨 두면
+    # 화면에 안 보이는 채로 관문과 병합에 계속 끼어든다.
+    prof.get("filter", {}).pop("core_en", None)
     _write(dest / "profile.yaml", prof)
-    return jsonify({"ok": True, "id": pid})
+    lex = _read(dest / "lexicon.yaml")
+    if lex.get("vendors"):
+        lex["vendors"] = []          # 제품 이름은 분야마다 완전히 다르다
+        _write(dest / "lexicon.yaml", lex)
+    return jsonify({"ok": True, "id": pid,
+                    "note": "%s 를 본떠 만들었습니다. 앞 분야의 영문 정규식과 "
+                            "제품 이름은 비웠습니다." % src.name})
 
 
 @bp.post("/api/setup/done")
@@ -538,6 +555,13 @@ def apply_proposal():
         f = prof.setdefault("filter", {})
         if p.get("core"):
             f["core"] = _lines(p["core"])
+            # 복사해 만든 분야는 앞 분야의 core_en 을 그대로 이고 있다. 핵심어를
+            # 통째로 바꾸면서 이걸 두면, 화면에 없는 정규식이 계속 관문을 열어
+            # 준다 — 해양안전 분야가 영문 AI 기사를 통과시키고 있었다.
+            if p.get("core_en"):
+                f["core_en"] = " ".join(str(p["core_en"]).split())
+            elif "core_en" in f:
+                del f["core_en"]
         if p.get("adjacent"):
             f["adjacent"] = _lines(p["adjacent"])
         _write(path, prof)
@@ -643,14 +667,34 @@ def test_keywords():
     from ..scoring import topic_focus
     from ..dedupe import cluster as make_clusters
 
-    raw = store.latest_raw()
-    if not raw:
-        return jsonify({"ok": False, "error": "지난 수집본이 없습니다. 먼저 한 번 수집하세요."})
     cfg = load()
-    arts = store.load_raw(raw)
+    raw = store.latest_raw()
+    if raw:
+        arts, source = store.load_raw(raw), raw.name
+    else:
+        # 처음 쓰는 사람에게 "먼저 수집하세요"는 막다른 길이다. 키워드는 ③ 인데
+        # 수집 시험은 ⑦ 이라 순서상 볼 수가 없다. 그러니 여기서 조금 모은다.
+        from .. import pipeline
+        quick = [s["id"] for s in cfg.enabled_sources()
+                 if s.get("collector") in ("google_news", "koreakr_search", "rss")]
+        if not quick:
+            quick = [s["id"] for s in cfg.enabled_sources()]
+        if not quick:
+            return jsonify({"ok": False,
+                            "error": "켜 둔 수집원이 없습니다. ② 에서 하나 켜세요."})
+        try:
+            arts = pipeline.collect(cfg, days=7, only=quick, progress=lambda m: None)
+        except Exception as exc:                           # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc)[:200]})
+        source = "방금 모은 최근 7일"
+    if not arts:
+        return jsonify({"ok": False,
+                        "error": "자료가 하나도 안 들어왔습니다. ② 에서 수집원을 시험해 보세요."})
     groups = make_clusters(arts, float(cfg.get("dedupe.title_similarity", 0.72)))
     floor = float(cfg.get("filter.min_focus", 3.5))
     passed = [g for g in groups if topic_focus(g, cfg) >= floor]
     return jsonify({"ok": True, "total": len(groups), "passed": len(passed),
                     "sample": [g.lead.title[:60] for g in passed[:5]],
-                    "raw": raw.name})
+                    "dropped": [g.lead.title[:60] for g in groups
+                                if topic_focus(g, cfg) < floor][:3],
+                    "raw": source})
