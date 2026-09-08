@@ -8,227 +8,445 @@
  *{box-sizing:border-box}
  body{margin:0;background:var(--bg);color:var(--fg);
    font:15px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}
- header{position:sticky;top:0;z-index:20;background:var(--panel);
-   border-bottom:1px solid var(--line);padding:14px 22px;display:flex;
-   gap:12px;align-items:center;flex-wrap:wrap}
- h1{font-size:16px;margin:0 auto 0 0;font-weight:700}
- h2{font-size:15px;margin:0 0 4px}
+ header{position:sticky;top:0;z-index:30;background:var(--panel);
+   border-bottom:1px solid var(--line);padding:12px 22px;display:flex;
+   gap:10px;align-items:center;flex-wrap:wrap}
+ h1{font-size:16px;margin:0;font-weight:700;white-space:nowrap}
+ h2{font-size:16px;margin:0 0 4px}
+ h3{font-size:13px;margin:18px 0 6px;color:var(--sub);font-weight:600}
  button{background:#21262d;color:var(--fg);border:1px solid var(--line);
-   border-radius:7px;padding:8px 14px;font:inherit;cursor:pointer}
+   border-radius:7px;padding:8px 14px;font:inherit;cursor:pointer;white-space:nowrap}
  button:hover{background:#2d333b}
+ button:disabled{opacity:.5;cursor:default}
  button.primary{background:var(--accent);color:#07111d;border-color:var(--accent);font-weight:700}
  button.sm{padding:5px 10px;font-size:13px}
  button.danger{border-color:#5b2b2b;color:#ffa198}
  input,select,textarea{background:#0b0f14;color:var(--fg);border:1px solid var(--line);
    border-radius:7px;padding:8px 10px;font:inherit;width:100%}
- textarea{resize:vertical;min-height:78px;font-size:13px;line-height:1.6}
- input[type=number]{width:90px}
+ textarea{resize:vertical;min-height:74px;font-size:13px;line-height:1.65}
+ input[type=number]{width:88px}
  input[type=color]{width:44px;padding:2px;height:34px}
- main{max-width:1000px;margin:0 auto;padding:20px 22px 80px}
- nav{position:sticky;top:59px;z-index:10;background:var(--bg);padding:10px 0 6px;
-   border-bottom:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap}
- nav a{color:var(--sub);text-decoration:none;padding:5px 11px;border-radius:99px;
-   border:1px solid transparent;font-size:13px}
- nav a:hover{border-color:var(--line);color:var(--fg)}
+ input[type=range]{padding:0;height:22px;accent-color:var(--accent)}
+ input[type=checkbox],input[type=radio]{width:auto}
+ .wrap{display:flex;gap:24px;max-width:1180px;margin:0 auto;padding:18px 22px 90px}
+ aside{width:190px;flex:none;position:sticky;top:70px;align-self:flex-start;
+   display:flex;flex-direction:column;gap:2px}
+ aside a{display:flex;gap:8px;align-items:baseline;color:var(--sub);text-decoration:none;
+   padding:7px 11px;border-radius:8px;font-size:13.5px;border:1px solid transparent}
+ aside a:hover{background:#1b2129;color:var(--fg)}
+ aside a.on{background:#1b2129;color:var(--fg);border-color:var(--line)}
+ aside a .dot{font-size:11px;color:#3d4756}
+ aside a.done .dot{color:var(--ok)}
+ main{flex:1;min-width:0}
  section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-   padding:20px;margin:16px 0}
+   padding:20px;margin:0 0 16px;scroll-margin-top:72px}
+ section.dirty{border-color:#4a3b1a}
  .why{color:var(--sub);font-size:13px;margin:2px 0 14px}
- .grid{display:grid;grid-template-columns:170px 1fr;gap:10px 14px;align-items:center}
+ .why b{color:#c9d4e0;font-weight:600}
+ .grid{display:grid;grid-template-columns:150px 1fr;gap:10px 14px;align-items:center}
  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+ .foot{display:flex;gap:10px;align-items:center;margin-top:16px;
+   padding-top:14px;border-top:1px solid var(--line)}
  .right{margin-left:auto}
  table{width:100%;border-collapse:collapse;font-size:13px}
- th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
- th{color:var(--sub);font-weight:600}
- .msg{border-radius:8px;padding:10px 12px;margin-top:10px;font-size:13px;display:none}
+ th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+ th{color:var(--sub);font-weight:600;font-size:12.5px}
+ .msg{border-radius:8px;padding:10px 12px;margin-top:12px;font-size:13px;display:none;
+   white-space:pre-wrap}
  .msg.ok{background:#0f2f18;border:1px solid #1f5c30;color:#7ee2a0;display:block}
  .msg.bad{background:#3a1a1a;border:1px solid #6b2b2b;color:#ffa198;display:block}
+ .msg.wait{background:#1a2430;border:1px solid #2d4a63;color:#9ec5e8;display:block}
  .pill{display:inline-block;border:1px solid var(--line);border-radius:99px;
-   padding:2px 9px;font-size:12px;color:var(--sub)}
+   padding:2px 9px;font-size:12px;color:var(--sub);white-space:nowrap}
  .pill.on{border-color:var(--ok);color:#7ee2a0}
  .pill.off{border-color:#4a3b1a;color:#e3b341}
+ .card{border:1px solid var(--line);border-radius:10px;padding:14px;margin:10px 0;
+   background:#11161d}
+ .card.off{opacity:.55}
+ .card h4{margin:0;font-size:14px;font-weight:600}
+ .tags{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+ .tag{display:inline-flex;align-items:center;gap:6px;background:#1c2531;
+   border:1px solid var(--line);border-radius:99px;padding:3px 6px 3px 11px;font-size:12.5px}
+ .tag b{font-weight:500}
+ .tag button{border:0;background:none;color:var(--sub);padding:0 4px;font-size:14px;line-height:1}
+ .tag button:hover{color:var(--bad);background:none}
  code{background:#0b0f14;padding:1px 5px;border-radius:4px;font-size:12px}
+ .hint{font-size:12px;color:var(--sub);margin-top:4px}
+ @media(max-width:820px){.wrap{flex-direction:column;padding:14px}
+   aside{width:auto;position:static;flex-direction:row;flex-wrap:wrap}
+   .grid{grid-template-columns:1fr}}
 </style></head><body>
 <header>
   <h1>동향지 설정</h1>
-  <select id="profile" style="width:auto"></select>
-  <button class="sm" id="newprof">분야 새로 만들기</button>
+  <select id="profile" style="width:auto;max-width:200px"></select>
+  <button class="sm" id="newprof">+ 분야</button>
+  <button class="sm danger" id="delprof">분야 삭제</button>
+  <span class="right"></span>
+  <span class="pill" id="dirtypill" style="display:none">저장 안 한 변경이 있습니다</span>
   <button class="primary" id="finish">설정 마치고 시작</button>
 </header>
+
+<div class="wrap">
+<aside id="toc">
+  <a href="#ask"><span class="dot">●</span>말로 설정</a>
+  <a href="#org"><span class="dot">●</span>① 기관</a>
+  <a href="#sources"><span class="dot">●</span>② 수집원</a>
+  <a href="#kw"><span class="dot">●</span>③ 키워드</a>
+  <a href="#rel"><span class="dot">●</span>④ 관련도</a>
+  <a href="#tracks"><span class="dot">●</span>⑤ 구성</a>
+  <a href="#model"><span class="dot">●</span>⑥ 모델</a>
+  <a href="#run"><span class="dot">●</span>⑦ 시험</a>
+</aside>
+
 <main>
-<nav>
-  <a href="#org">① 기관</a><a href="#kw">② 키워드</a><a href="#tracks">③ 구성</a>
-  <a href="#sources">④ 수집원</a><a href="#rel">⑤ 관련도</a><a href="#model">⑥ 모델</a>
-</nav>
+
+<section id="ask" style="border-color:#2d4a63">
+  <h2>말로 설정하기</h2>
+  <div class="why">
+    무엇에 대한 동향지인지 한두 문장 적으면 아래 ①~⑤를 한 번에 채워 줍니다.
+    <b>바로 바뀌지 않습니다</b> — 제안을 보여 주고, 고른 것만 적용합니다.
+    건너뛰고 아래에서 직접 채워도 됩니다.
+  </div>
+  <textarea id="askbox" style="min-height:70px"
+    placeholder="예) 해양 안전과 선박 사고 예방을 다루는 동향지. 우리는 해양경찰청이고 현장 구조·단속 업무에 닿는 소식이 중요하다."></textarea>
+  <div class="hint">기관 이름과 "무슨 업무에 쓰는지"를 함께 적으면 가중치가 훨씬 잘 잡힙니다.</div>
+  <div class="foot">
+    <button class="primary" id="askgo">제안 받기</button>
+    <span class="why" style="margin:0" id="askwait"></span>
+  </div>
+  <div class="msg" id="m-ask"></div>
+  <div id="prop" style="display:none;margin-top:16px">
+    <div class="card" id="propnote" style="border-color:#2d4a63"></div>
+    <table><thead><tr><th style="width:44px">적용</th><th style="width:96px">갈래</th>
+      <th>제안 내용</th></tr></thead><tbody id="propbody"></tbody></table>
+    <div class="foot">
+      <button class="primary" id="applyprop">고른 것 적용</button>
+      <button id="dropprop">버리기</button>
+    </div>
+  </div>
+</section>
 
 <section id="org">
-  <h2>① 어느 기관의, 무엇에 대한 동향지인가</h2>
-  <div class="why">발행물 표지와 초안 문구에 그대로 들어갑니다.</div>
+  <h2>① 누가 만드는 동향지인가</h2>
+  <div class="why">여기 적은 기관·부서 이름이 <b>초안을 쓸 때 모델에게 그대로 전달됩니다.</b>
+    "우리 기관에는 이런 뜻" 같은 문장이 여기서 나옵니다. 표지와 머리글에도 쓰입니다.</div>
   <div class="grid">
-    <label>기관 이름</label><input id="publisher" placeholder="예: 해양경찰청">
-    <label>부서</label><input id="team" placeholder="예: 인공지능전환팀">
-    <label>발행물 이름</label><input id="series" placeholder="예: AI 정보동향지">
-    <label>분야 이름</label><input id="pname" placeholder="예: AI 정보동향지">
-    <label>주제 한 낱말</label><input id="subject" placeholder="예: 인공지능 · 국제협력">
+    <label>기관</label><input id="publisher" placeholder="예) 해양경찰청">
+    <label>부서</label><input id="team" placeholder="예) 정보통신과">
+    <label>동향지 이름</label><input id="series" placeholder="예) 해양안전 정보동향">
+    <label>분야 이름</label><input id="pname" placeholder="예) 해양안전">
+    <label>한 줄 주제</label><input id="subject"
+      placeholder="예) 해양 안전·선박 사고 예방 및 해상 구조">
   </div>
-  <div class="row" style="margin-top:14px"><button class="primary" data-save="org">저장</button></div>
+  <div class="hint">"한 줄 주제"는 모델이 무엇을 고를지 판단하는 기준이 됩니다. 구체적일수록 좋습니다.</div>
+  <div class="foot"><button class="primary" data-save="org">저장</button></div>
   <div class="msg" id="m-org"></div>
 </section>
 
-<section id="kw">
-  <h2>② 무엇을 이 분야 자료로 볼 것인가</h2>
-  <div class="why">
-    핵심어가 <b>제목</b>에 있으면 이 분야 기사로 봅니다. 주변어는 혼자서는 약합니다.
-    기관 게시판처럼 전체를 긁는 수집원이 있어 이 관문이 없으면 아무거나 다 들어옵니다.
-  </div>
-  <div class="grid">
-    <label>핵심어<br><span class="why">한 줄에 하나</span></label><textarea id="core"></textarea>
-    <label>주변어</label><textarea id="adjacent"></textarea>
-    <label>통과 점수</label>
-    <div class="row"><input type="number" id="min_focus" step="0.5" min="0">
-      <span class="why">낮출수록 많이 들어옵니다 (기본 3.5)</span></div>
-    <label>주변어 조건</label>
-    <div class="row"><label class="why"><input type="checkbox" id="ance" style="width:auto">
-      주변어는 본문에 핵심어가 함께 있을 때만 인정</label></div>
-  </div>
-  <div class="row" style="margin-top:14px">
-    <button class="primary" data-save="keywords">저장</button>
-    <button id="kwtest">지난 수집본으로 몇 건 걸리는지 보기</button>
-  </div>
-  <div class="msg" id="m-kw"></div>
-</section>
-
-<section id="tracks">
-  <h2>③ 동향지를 어떻게 구성할 것인가</h2>
-  <div class="why">
-    트랙은 <b>어느 수집원에서 왔는가</b>로 나뉩니다. 각 트랙에서 몇 건씩 실을지 정합니다.
-  </div>
-  <table><thead><tr><th style="width:120px">키</th><th>표기</th><th>발행물 표기</th>
-    <th style="width:70px">최소</th><th style="width:70px">최대</th><th style="width:60px">색</th><th></th></tr></thead>
-    <tbody id="trackbody"></tbody></table>
-  <div class="row" style="margin-top:12px">
-    <button class="sm" id="addtrack">트랙 추가</button>
-    <div class="right row">
-      <label class="why">전체 최대</label><input type="number" id="total_max" min="1">
-      <label class="why"><input type="checkbox" id="llm_rerank" style="width:auto"> 모델이 다시 고르게</label>
-      <label class="why"><input type="checkbox" id="drop_same" style="width:auto"> 같은 사건 하나만</label>
-    </div>
-  </div>
-  <div class="row" style="margin-top:12px"><button class="primary" data-save="tracks">저장</button></div>
-  <div class="msg" id="m-tracks"></div>
-</section>
-
 <section id="sources">
-  <h2>④ 어디서 모을 것인가</h2>
-  <div class="why">
-    <code>koreakr_search</code> 는 정책브리핑을 부처+검색어로, <code>google_news</code> 는
-    검색어로, <code>rss</code> 는 주소로 봅니다. 셋이면 웬만한 분야가 덮입니다.
-  </div>
-  <table><thead><tr><th style="width:52px">켬</th><th>이름</th><th style="width:130px">수집기</th>
-    <th style="width:110px">트랙</th><th style="width:80px">가중치</th><th>설정</th><th style="width:70px"></th></tr></thead>
-    <tbody id="srcbody"></tbody></table>
-  <div class="row" style="margin-top:12px">
-    <button class="sm" id="addsrc">수집원 추가</button>
+  <h2>② 어디서 모을 것인가</h2>
+  <div class="why">여기 켠 곳에서만 자료가 들어옵니다. <b>하나씩 시험을 눌러</b>
+    실제로 몇 건 들어오는지 확인하세요. 0건이면 검색어나 주소가 틀린 것입니다.</div>
+  <div id="srclist"></div>
+  <div class="foot">
+    <select id="addwhat" style="width:auto"></select>
+    <button id="addsrc">이 수집원 추가</button>
     <button class="primary right" data-save="sources">저장</button>
   </div>
   <div class="msg" id="m-sources"></div>
 </section>
 
-<section id="rel">
-  <h2>⑤ 무엇을 얼마나 중요하게 볼 것인가</h2>
-  <div class="why">
-    동향지 품질을 가장 크게 가르는 곳입니다. 가중치는 감으로 정하지 말고
-    <b>지난 발행본을 분석해</b> 실제 비중에 맞추는 것을 권합니다.
-    문맥 낱말을 적으면 그 말이 함께 있을 때만 그 그룹을 셉니다(일반어 오탐 방지).
+<section id="kw">
+  <h2>③ 무엇을 이 분야 자료로 볼 것인가</h2>
+  <div class="why">모아 온 자료 중 <b>이 분야가 아닌 것을 걸러내는 관문</b>입니다.
+    핵심어는 제목에 하나만 있어도 통과, 주변어는 여럿 겹쳐야 통과합니다.
+    너무 좁으면 아무것도 안 남고, 너무 넓으면 엉뚱한 게 실립니다.</div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start">
+    <div><h3 style="margin-top:0">핵심어 — 이게 있으면 이 분야다</h3>
+      <textarea id="core" style="min-height:190px" placeholder="한 줄에 하나씩"></textarea>
+      <div class="hint">12~20개쯤. 정규식도 됩니다 (예: <code>AI|인공지능</code>)</div></div>
+    <div><h3 style="margin-top:0">주변어 — 이것만으론 부족하다</h3>
+      <textarea id="adjacent" style="min-height:190px" placeholder="한 줄에 하나씩"></textarea>
+      <div class="hint">15~25개쯤. 핵심어와 함께 있을 때 힘을 보탭니다.</div></div>
   </div>
-  <table><thead><tr><th style="width:130px">그룹</th><th style="width:80px">가중치</th>
-    <th>낱말 (쉼표 또는 줄바꿈)</th><th style="width:150px">문맥</th><th style="width:56px"></th></tr></thead>
-    <tbody id="relbody"></tbody></table>
-  <div class="row" style="margin-top:12px">
-    <button class="sm" id="addrel">그룹 추가</button>
+  <div class="row" style="margin-top:14px">
+    <label style="width:auto">통과 기준</label>
+    <input type="range" id="min_focus_r" min="1" max="8" step="0.5" style="width:200px">
+    <input type="number" id="min_focus" step="0.5" min="0">
+    <span class="hint" id="mfhint" style="margin:0"></span>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <label style="width:auto"><input type="checkbox" id="ance">
+      주변어만으로는 통과시키지 않기</label>
+    <span class="hint" style="margin:0">켜면 핵심어가 반드시 하나는 있어야 합니다.</span>
+  </div>
+  <div class="foot">
+    <button class="primary" data-save="keywords">저장</button>
+    <button id="kwtest">이 기준으로 몇 건이 남는지 보기</button>
+  </div>
+  <div class="msg" id="m-kw"></div>
+</section>
+
+<section id="rel">
+  <h2>④ 무엇을 얼마나 중요하게 볼 것인가</h2>
+  <div class="why">같은 분야 자료라도 <b>우리 업무에 닿는 것</b>이 위로 와야 합니다.
+    낱말이 제목·본문에 나오면 그 그룹의 가중치만큼 점수가 붙습니다.
+    우리 기관을 가장 높게, 먼 이야기를 가장 낮게 두는 것이 보통입니다.</div>
+  <div id="rellist"></div>
+  <div class="foot">
+    <button id="addrel">+ 그룹 추가</button>
+    <button id="sortrel">가중치 순 정렬</button>
     <button class="primary right" data-save="relevance">저장</button>
   </div>
   <div class="msg" id="m-rel"></div>
 </section>
 
+<section id="tracks">
+  <h2>⑤ 몇 건을, 어떻게 나눠 실을 것인가</h2>
+  <div class="why">동향지 한 호의 <b>목차 구조</b>입니다. 트랙마다 최소·최대 건수를 정하면
+    한쪽으로 쏠리지 않습니다. 색은 발행물 목차에 쓰입니다.</div>
+  <table><thead><tr>
+    <th style="width:110px">영문 key</th><th style="width:110px">트랙 이름</th>
+    <th>머리글에 쓸 말</th><th style="width:74px">최소</th><th style="width:74px">최대</th>
+    <th style="width:54px">색</th><th style="width:60px"></th>
+  </tr></thead><tbody id="trackbody"></tbody></table>
+  <div class="hint">key 는 영문 소문자로. 저장한 뒤 ② 수집원의 트랙 선택칸에 나타납니다.</div>
+  <h3>한 호에 몇 건까지</h3>
+  <div class="row">
+    <input type="number" id="total_max" min="1" max="30">
+    <label style="width:auto"><input type="checkbox" id="llm_rerank">
+      모델에게 최종 선별을 한 번 더 맡기기</label>
+    <label style="width:auto"><input type="checkbox" id="drop_same">
+      같은 사건은 한 건만 싣기</label>
+  </div>
+  <div class="foot">
+    <button id="addtrack">+ 트랙 추가</button>
+    <button class="primary right" data-save="tracks">저장</button>
+  </div>
+  <div class="msg" id="m-tracks"></div>
+</section>
+
 <section id="model">
   <h2>⑥ 어떤 모델로 초안을 쓸 것인가</h2>
-  <div class="why">넷 중에서 고릅니다. 내 컴퓨터 모델(Ollama)은 키가 필요 없습니다.</div>
-  <table><thead><tr><th style="width:44px"></th><th>제공자</th><th style="width:90px">상태</th>
-    <th>모델</th><th style="width:180px">키</th><th style="width:90px"></th></tr></thead>
-    <tbody id="provbody"></tbody></table>
+  <div class="why">고르지 않아도 수집·선별은 됩니다. 모델은 <b>본문 초안</b>을 쓰는 데만 씁니다.
+    키를 넣으면 <code>config/secrets.yaml</code> 에 저장되고 깃에는 올라가지 않습니다.</div>
+  <table><thead><tr><th style="width:40px"></th><th>제공자</th><th style="width:96px">상태</th>
+    <th style="width:190px">모델</th><th style="width:210px">API 키</th><th style="width:60px"></th>
+  </tr></thead><tbody id="provbody"></tbody></table>
   <div class="msg" id="m-model"></div>
 </section>
-</main>
+
+<section id="run">
+  <h2>⑦ 정말 되는지 한 번 돌려 보기</h2>
+  <div class="why">지금 설정 그대로 <b>실제로 수집하고 골라 봅니다.</b> 초안은 쓰지 않아
+    돈이 들지 않습니다. 1~2분 걸립니다. 결과가 이상하면 위로 올라가 고치세요.</div>
+  <div class="row">
+    <label style="width:auto">최근</label>
+    <input type="number" id="days" value="7" min="1" max="30"><label style="width:auto">일치</label>
+    <button class="primary" id="rungo">시험 수집</button>
+  </div>
+  <div class="msg" id="m-run"></div>
+  <div id="runout"></div>
+</section>
+
+</main></div>
+
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let S=null;
-const api=async(p,b)=>(await fetch(p,b?{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify(b)}:{})).json();
-const say=(id,ok,t)=>{const e=$(id);e.className='msg '+(ok?'ok':'bad');e.textContent=t;
-  setTimeout(()=>{if(ok)e.style.display='none'},6000)};
+let S={};
+const api=(u,b)=>fetch(u,b?{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify(b)}:{}).then(r=>r.json());
+const say=(id,cls,t)=>{const e=$(id);
+  e.className='msg '+(cls===true?'ok':cls===false?'bad':cls); e.textContent=t;
+  if(cls===true) setTimeout(()=>{e.style.display='none'},7000)};
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const lines=v=>String(v||'').split('\n').map(x=>x.trim()).filter(Boolean);
 
+/* ---- 저장 안 한 변경 표시 -------------------------------------------- */
+let dirty=new Set();
+function markDirty(el){const s=el.closest('section'); if(!s||s.id==='ask'||s.id==='run')return;
+  s.classList.add('dirty'); dirty.add(s.id); $('#dirtypill').style.display='';}
+function clearDirty(id){const s=$('#'+id); if(s)s.classList.remove('dirty');
+  dirty.delete(id); if(!dirty.size)$('#dirtypill').style.display='none';}
+document.addEventListener('input',e=>{if(e.target.matches('input,select,textarea'))markDirty(e.target);});
+window.onbeforeunload=()=>dirty.size?'저장하지 않은 변경이 있습니다.':null;
+
+/* ---- 수집원: 수집기마다 다른 입력칸 ----------------------------------- */
+function C(id){return (S.collectors||[]).find(c=>c.id===id);}
+
+function field(f,val){
+  const k=f.key;
+  if(f.type==='depts'){
+    const cur=(val||[]).map(d=>`<span class="tag" data-v="${esc(d)}"><b>${esc(d)}</b>
+      <button onclick="this.closest('.tag').remove()">×</button></span>`).join('');
+    return `<div class="fld" data-k="${k}" data-t="depts">
+      <h3>${esc(f.label)}</h3><div class="tags">${cur}</div>
+      <div class="row"><input list="deptlist" class="dadd" placeholder="부처 이름을 치면 목록이 뜹니다"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();addDept(this)}">
+        <button class="sm" onclick="addDept(this.previousElementSibling)">추가</button></div></div>`;
+  }
+  if(f.type==='queries'){
+    const txt=(val||[]).map(q=>typeof q==='string'?q:(q&&q.q)||'').filter(Boolean).join('\n');
+    return `<div class="fld" data-k="${k}" data-t="queries"><h3>${esc(f.label)}</h3>
+      <textarea placeholder="한 줄에 하나씩">${esc(txt)}</textarea>
+      <div class="hint">따옴표·OR 도 됩니다. 예: <code>(해양사고 OR 선박사고) 구조</code></div></div>`;
+  }
+  if(f.type==='lines'){
+    return `<div class="fld" data-k="${k}" data-t="lines"><h3>${esc(f.label)}</h3>
+      <textarea placeholder="한 줄에 하나씩">${esc((val||[]).join('\n'))}</textarea></div>`;
+  }
+  if(f.type==='number'){
+    return `<div class="fld" data-k="${k}" data-t="number"><h3>${esc(f.label)}</h3>
+      <input type="number" min="1" value="${val??2}"></div>`;
+  }
+  return `<div class="fld" data-k="${k}" data-t="text"><h3>${esc(f.label)}</h3>
+    <input value="${esc(val??'')}"></div>`;
+}
+window.addDept=inp=>{const v=inp.value.trim(); if(!v)return;
+  inp.closest('.fld').querySelector('.tags').insertAdjacentHTML('beforeend',
+    `<span class="tag" data-v="${esc(v)}"><b>${esc(v)}</b>
+     <button onclick="this.closest('.tag').remove()">×</button></span>`);
+  inp.value=''; markDirty(inp);};
+
+function srcCard(s){
+  const c=C(s.collector), p=s.params||{};
+  const trs=(S.tracks||[]).map(t=>
+    `<option value="${esc(t.key)}"${t.key===s.track?' selected':''}>${esc(t.label||t.key)}</option>`).join('');
+  const body = c
+    ? c.fields.map(f=>field(f,p[f.key])).join('')
+    : `<div class="fld" data-k="__raw" data-t="raw"><h3>설정값 (JSON)</h3>
+       <textarea>${esc(JSON.stringify(p))}</textarea>
+       <div class="hint">이 수집기는 전용 입력칸이 없어 값을 그대로 고칩니다.</div></div>`;
+  return `<div class="card${s.enabled?'':' off'}" data-id="${esc(s.id)}"
+       data-col="${esc(s.collector)}">
+    <div class="row">
+      <input type="checkbox" class="se"${s.enabled?' checked':''}
+        onchange="this.closest('.card').classList.toggle('off',!this.checked)">
+      <input class="sn" value="${esc(s.name||'')}" placeholder="이 수집원 이름"
+        style="width:auto;flex:1;min-width:140px;font-weight:600">
+      <span class="pill">${esc(c?c.label:s.collector)}</span>
+      <select class="st" style="width:auto">${trs}</select>
+      <button class="sm right" onclick="testSrc(this)">시험</button>
+      <button class="sm danger" onclick="if(confirm('이 수집원을 지울까요?'))this.closest('.card').remove()">삭제</button>
+    </div>
+    ${c?`<div class="hint" style="margin:6px 0 0">${esc(c.why)}</div>`:''}
+    ${body}
+    <input type="hidden" class="si" value="${esc(s.id||'')}">
+    <input type="hidden" class="sw" value="${s.weight??1.0}">
+  </div>`;
+}
+function readCard(card){
+  const params={};
+  card.querySelectorAll('.fld').forEach(f=>{
+    const k=f.dataset.k, t=f.dataset.t;
+    if(t==='depts') params[k]=[...f.querySelectorAll('.tag')].map(x=>x.dataset.v);
+    else if(t==='queries') params[k]=lines(f.querySelector('textarea').value).map(q=>({q}));
+    else if(t==='lines') params[k]=lines(f.querySelector('textarea').value);
+    else if(t==='number') params[k]=+f.querySelector('input').value;
+    else if(t==='raw'){try{Object.assign(params,JSON.parse(f.querySelector('textarea').value||'{}'))}catch(e){}}
+    else params[k]=f.querySelector('input').value;
+  });
+  const name=card.querySelector('.sn').value;
+  let id=card.querySelector('.si').value
+      || (name.replace(/[^\w가-힣]+/g,'_').slice(0,24)||'src')+'_'+Math.random().toString(36).slice(2,6);
+  return {id, name, collector:card.dataset.col, track:card.querySelector('.st').value,
+          weight:+card.querySelector('.sw').value, enabled:card.querySelector('.se').checked,
+          params};
+}
+
+/* ---- 관련도 ----------------------------------------------------------- */
+function relCard(g){
+  const w=g.weight??2.0;
+  return `<div class="card">
+    <div class="row">
+      <input class="rg" value="${esc(g.group||'')}" placeholder="그룹 이름 (예: 우리기관)"
+        style="width:auto;flex:1;min-width:130px;font-weight:600">
+      <input type="range" class="rwr" min="0.5" max="7" step="0.1" value="${w}" style="width:150px">
+      <input type="number" class="rw" step="0.1" value="${w}">
+      <button class="sm danger right"
+        onclick="if(confirm('이 그룹을 지울까요?'))this.closest('.card').remove()">삭제</button>
+    </div>
+    <h3>이 낱말이 나오면 이 점수를 준다</h3>
+    <textarea class="rk" placeholder="쉼표로 구분">${esc((g.keywords||[]).join(', '))}</textarea>
+    <h3>같이 있어야만 인정할 말 <span style="font-weight:400">— 비워도 됩니다</span></h3>
+    <textarea class="rc" style="min-height:52px" placeholder="쉼표로 구분">${esc((g.context||[]).join(', '))}</textarea>
+    <div class="hint">위 낱말이 <b>혼자서는 아무 데나 걸리는 흔한 말</b>일 때만 채우세요.
+      예: 낱말이 "구조·수색"이면 여기에 "해상, 선박, 어선"을 넣어 해상 맥락일 때만 세게 합니다.</div>
+    <input class="rl" value="${esc(g.label||'')}" placeholder="선정 사유에 보일 설명 (비우면 그룹 이름)"
+      style="margin-top:8px;font-size:12.5px">
+  </div>`;
+}
+function readRel(card){return {group:card.querySelector('.rg').value,
+  weight:+card.querySelector('.rw').value, label:card.querySelector('.rl').value,
+  keywords:card.querySelector('.rk').value, context:card.querySelector('.rc').value};}
+
+/* ---- 트랙·모델 --------------------------------------------------------- */
 function trackRow(t={}){return `<tr>
  <td><input class="tk" value="${esc(t.key||'')}" placeholder="policy"></td>
- <td><input class="tl" value="${esc(t.label||'')}"></td>
- <td><input class="tf" value="${esc(t.field_label||'')}"></td>
+ <td><input class="tl" value="${esc(t.label||'')}" placeholder="정책"></td>
+ <td><input class="tf" value="${esc(t.field_label||'')}" placeholder="정부 동향"></td>
  <td><input type="number" class="tmin" value="${(t.quota||[0,0])[0]}" min="0"></td>
  <td><input type="number" class="tmax" value="${(t.quota||[0,0])[1]}" min="0"></td>
  <td><input type="color" class="tc" value="${esc(t.color||'#38E1FF')}"></td>
  <td><button class="sm danger" onclick="this.closest('tr').remove()">삭제</button></td></tr>`;}
 
-function srcRow(s={}){const cols=(S.collectors||[]).map(c=>
-  `<option${c===s.collector?' selected':''}>${c}</option>`).join('');
- const trs=(S.tracks||[]).map(t=>`<option${t.key===s.track?' selected':''}>${t.key}</option>`).join('');
- return `<tr>
- <td><input type="checkbox" class="se" style="width:auto"${s.enabled?' checked':''}></td>
- <td><input class="sn" value="${esc(s.name||'')}" placeholder="이름">
-     <input class="si" value="${esc(s.id||'')}" placeholder="id" style="margin-top:4px;font-size:12px"></td>
- <td><select class="sc">${cols}</select></td>
- <td><select class="st">${trs}</select></td>
- <td><input type="number" class="sw" step="0.1" value="${s.weight??1.0}"></td>
- <td><textarea class="sp" style="min-height:56px">${esc(JSON.stringify(s.params||{},null,0))}</textarea></td>
- <td><button class="sm" onclick="testSrc(this)">시험</button></td></tr>`;}
-
-function relRow(g={}){return `<tr>
- <td><input class="rg" value="${esc(g.group||'')}"></td>
- <td><input type="number" class="rw" step="0.5" value="${g.weight??1.0}"></td>
- <td><textarea class="rk">${esc((g.keywords||[]).join(', '))}</textarea>
-     <input class="rl" value="${esc(g.label||'')}" placeholder="화면에 보일 설명" style="margin-top:4px;font-size:12px"></td>
- <td><textarea class="rc" style="min-height:56px">${esc((g.context||[]).join(', '))}</textarea></td>
- <td><button class="sm danger" onclick="this.closest('tr').remove()">삭제</button></td></tr>`;}
-
-function provRow(p){const cur=S.provider===p.name;
- const needKey=['anthropic','openai','gemini'].includes(p.name);
- return `<tr data-p="${p.name}">
- <td><input type="radio" name="prov" style="width:auto"${cur?' checked':''}
-      onchange="pickProv('${p.name}')"></td>
- <td>${esc(p.label)}<div class="why">${esc(p.detail||'')}</div></td>
+function provRow(p){const needKey=['anthropic','openai','gemini'].includes(p.name);
+ return `<tr data-p="${esc(p.name)}">
+ <td><input type="radio" name="prov"${S.provider===p.name?' checked':''}
+      onchange="pickProv('${esc(p.name)}')"></td>
+ <td>${esc(p.label)}<div class="hint">${esc(p.detail||'')}</div></td>
  <td><span class="pill ${p.ready?'on':'off'}">${p.ready?'쓸 수 있음':'설정 필요'}</span></td>
- <td><input class="pm" value="${esc(p.model||'')}" placeholder="비우면 기본"></td>
- <td>${needKey?'<input class="pk" type="password" placeholder="키를 넣으면 저장됩니다">':'<span class="why">필요 없음</span>'}</td>
- <td><button class="sm" onclick="testProv('${p.name}')">시험</button></td></tr>`;}
+ <td><input class="pm" value="${esc(p.model||'')}" placeholder="비우면 기본값"></td>
+ <td>${needKey?'<input class="pk" type="password" placeholder="키를 넣으면 저장됩니다">'
+              :'<span class="hint">필요 없음</span>'}</td>
+ <td><button class="sm" onclick="testProv('${esc(p.name)}')">시험</button></td></tr>`;}
 
+/* ---- 그리기 ------------------------------------------------------------ */
 function render(){
  $('#profile').innerHTML=(S.profiles||[]).map(p=>
-   `<option${p===S.profile_id?' selected':''}>${p}</option>`).join('');
+   `<option${p===S.profile_id?' selected':''}>${esc(p)}</option>`).join('');
  const o=S.org||{};
  $('#publisher').value=o.publisher||''; $('#team').value=o.team||'';
  $('#series').value=o.series||''; $('#pname').value=o.name||''; $('#subject').value=o.subject||'';
+
+ $('#srclist').innerHTML=(S.sources||[]).map(srcCard).join('')
+   || '<div class="hint">아직 수집원이 없습니다. 아래에서 하나 추가하세요.</div>';
+ $('#addwhat').innerHTML=(S.collectors||[]).map(c=>
+   `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('');
+ if(!$('#deptlist')) document.body.insertAdjacentHTML('beforeend',
+   `<datalist id="deptlist">${(S.depts||[]).map(d=>`<option>${esc(d)}</option>`).join('')}</datalist>`);
+
  const f=S.filter||{};
  $('#core').value=(f.core||[]).join('\n'); $('#adjacent').value=(f.adjacent||[]).join('\n');
- $('#min_focus').value=f.min_focus??3.5; $('#ance').checked=!!f.adjacent_needs_core;
+ $('#min_focus').value=f.min_focus??3.5; $('#min_focus_r').value=f.min_focus??3.5;
+ $('#ance').checked=!!f.adjacent_needs_core; mfHint();
+
+ $('#rellist').innerHTML=[...(S.relevance||[])]
+   .sort((a,b)=>(b.weight||0)-(a.weight||0)).map(relCard).join('');
  $('#trackbody').innerHTML=(S.tracks||[]).map(trackRow).join('');
  const c=S.compose||{};
  $('#total_max').value=c.total_max??8; $('#llm_rerank').checked=!!c.llm_rerank;
  $('#drop_same').checked=!!c.drop_same_event;
- $('#srcbody').innerHTML=(S.sources||[]).map(srcRow).join('');
- $('#relbody').innerHTML=(S.relevance||[]).map(relRow).join('');
  $('#provbody').innerHTML=(S.providers||[]).map(provRow).join('');
+ progress();
 }
-async function load(){S=await api('/api/setup/state');render();}
+function mfHint(){const v=+$('#min_focus').value;
+ $('#mfhint').textContent = v<=2 ? '느슨함 — 주변어만 있어도 통과합니다'
+   : v<=4 ? '보통 — 핵심어 하나면 통과합니다' : '엄격함 — 핵심어가 여럿 겹쳐야 통과합니다';}
 
-const collect={
+function progress(){
+ const o=S.org||{}, f=S.filter||{};
+ const done={ask:true, org:!!(o.publisher&&o.name),
+   sources:(S.sources||[]).some(s=>s.enabled),
+   kw:(f.core||[]).length>=3, rel:(S.relevance||[]).length>=2,
+   tracks:(S.tracks||[]).length>=1,
+   model:(S.providers||[]).some(p=>p.name===S.provider&&p.ready), run:false};
+ $$('#toc a').forEach(a=>a.classList.toggle('done', !!done[a.hash.slice(1)]));
+}
+async function load(){S=await api('/api/setup/state'); render();}
+
+/* ---- 저장 -------------------------------------------------------------- */
+const gather={
  org:()=>({publisher:$('#publisher').value,team:$('#team').value,series:$('#series').value,
            name:$('#pname').value,subject:$('#subject').value}),
  keywords:()=>({core:$('#core').value,adjacent:$('#adjacent').value,
@@ -237,69 +455,178 @@ const collect={
    label:r.querySelector('.tl').value,field_label:r.querySelector('.tf').value,
    min:+r.querySelector('.tmin').value,max:+r.querySelector('.tmax').value,
    color:r.querySelector('.tc').value}))}),
- sources:()=>({sources:$$('#srcbody tr').map(r=>{let p={};
-   try{p=JSON.parse(r.querySelector('.sp').value||'{}')}catch(e){}
-   return {id:r.querySelector('.si').value,name:r.querySelector('.sn').value,
-     collector:r.querySelector('.sc').value,track:r.querySelector('.st').value,
-     weight:+r.querySelector('.sw').value,enabled:r.querySelector('.se').checked,params:p};})}),
- relevance:()=>({groups:$$('#relbody tr').map(r=>({group:r.querySelector('.rg').value,
-   weight:+r.querySelector('.rw').value,label:r.querySelector('.rl').value,
-   keywords:r.querySelector('.rk').value,context:r.querySelector('.rc').value}))}),
+ sources:()=>({sources:$$('#srclist .card').map(readCard)}),
+ relevance:()=>({groups:$$('#rellist .card').map(readRel)}),
 };
-
 $$('[data-save]').forEach(b=>b.onclick=async()=>{
-  const k=b.dataset.save;
-  const extra = k==='tracks' ? {total_max:+$('#total_max').value,
-      llm_rerank:$('#llm_rerank').checked, drop_same_event:$('#drop_same').checked} : null;
-  const r=await api('/api/setup/'+k, collect[k]());
-  if(extra) await api('/api/setup/compose', extra);
-  say('#m-'+(k==='keywords'?'kw':k==='relevance'?'rel':k), r.ok, r.ok?'저장했습니다.':r.error);
-  if(r.ok) load();
+  const k=b.dataset.save, sec=b.closest('section').id;
+  b.disabled=true;
+  const r=await api('/api/setup/'+k, gather[k]());
+  if(k==='tracks') await api('/api/setup/compose',{total_max:+$('#total_max').value,
+      llm_rerank:$('#llm_rerank').checked, drop_same_event:$('#drop_same').checked});
+  b.disabled=false;
+  say('#m-'+sec, r.ok, r.ok?'저장했습니다.':r.error);
+  if(r.ok){ clearDirty(sec); await load(); }
 });
 
+/* ---- 더하기 ------------------------------------------------------------ */
 $('#addtrack').onclick=()=>$('#trackbody').insertAdjacentHTML('beforeend',trackRow());
-$('#addsrc').onclick=()=>$('#srcbody').insertAdjacentHTML('beforeend',
-  srcRow({enabled:true,collector:'google_news',weight:1.0,params:{queries:[{q:'검색어'}]}}));
-$('#addrel').onclick=()=>$('#relbody').insertAdjacentHTML('beforeend',relRow({weight:2.0}));
+$('#addrel').onclick=()=>{$('#rellist').insertAdjacentHTML('beforeend',relCard({weight:2.0}));
+  bindRel();};
+$('#sortrel').onclick=()=>{const gs=$$('#rellist .card').map(readRel)
+    .map(g=>({...g,keywords:lines(g.keywords.replace(/,/g,'\n')),
+              context:lines(g.context.replace(/,/g,'\n'))}));
+  gs.sort((a,b)=>b.weight-a.weight);
+  $('#rellist').innerHTML=gs.map(relCard).join(''); bindRel();};
+$('#addsrc').onclick=()=>{const cid=$('#addwhat').value, c=C(cid);
+  const seed={koreakr_search:{depts:[],queries:[]}, google_news:{queries:[]},
+              rss:{feeds:[]}, govboard:{url:'',pages:2}, koreakr_list:{pages:3}}[cid]||{};
+  $('#srclist').insertAdjacentHTML('beforeend', srcCard({enabled:true,collector:cid,
+    name:c?c.label:cid, track:(S.tracks||[{}])[0].key, weight:1.0, params:seed, id:''}));
+  markDirty($('#srclist'));};
 
+function bindRel(){$$('#rellist .card').forEach(c=>{
+  const r=c.querySelector('.rwr'), n=c.querySelector('.rw');
+  r.oninput=()=>{n.value=r.value}; n.oninput=()=>{r.value=n.value};});}
+new MutationObserver(bindRel).observe($('#rellist'),{childList:true});
+
+$('#min_focus_r').oninput=()=>{$('#min_focus').value=$('#min_focus_r').value;mfHint()};
+$('#min_focus').oninput=()=>{$('#min_focus_r').value=$('#min_focus').value;mfHint()};
+
+/* ---- 시험 -------------------------------------------------------------- */
 $('#kwtest').onclick=async()=>{
-  await api('/api/setup/keywords', collect.keywords());
+  say('#m-kw','wait','최근 자료로 세어 보는 중…');
+  await api('/api/setup/keywords', gather.keywords());
   const r=await api('/api/setup/test/keywords',{});
   say('#m-kw', r.ok, r.ok
-    ? `${r.raw} 기준 ${r.total}개 중 ${r.passed}개가 통과합니다. 예: ${(r.sample||[]).slice(0,3).join(' / ')}`
+    ? `${r.raw} 기준 ${r.total}개 중 ${r.passed}개가 통과합니다.\n예: ${(r.sample||[]).slice(0,3).join(' / ')}`
     : r.error);
+  if(r.ok) clearDirty('kw');
 };
-window.testSrc=async(btn)=>{
-  const r=btn.closest('tr'); let p={}; try{p=JSON.parse(r.querySelector('.sp').value||'{}')}catch(e){}
-  btn.textContent='…';
-  const res=await api('/api/setup/test/source',{id:r.querySelector('.si').value||'test',
-    name:r.querySelector('.sn').value,collector:r.querySelector('.sc').value,
-    track:r.querySelector('.st').value,params:p,enabled:true});
-  btn.textContent='시험';
-  say('#m-sources', res.ok, res.ok
-    ? `${res.count}건 들어옵니다. ${(res.sample||[])[0]||''}` : res.error);
+window.testSrc=async btn=>{
+  const card=btn.closest('.card'), s=readCard(card);
+  btn.textContent='…'; btn.disabled=true;
+  say('#m-sources','wait',`${s.name||s.id} 에 접속하는 중…`);
+  const res=await api('/api/setup/test/source', {...s, enabled:true});
+  btn.textContent='시험'; btn.disabled=false;
+  say('#m-sources', res.ok&&res.count>0 ? true : res.ok ? 'bad' : false,
+    !res.ok ? res.error
+    : res.count>0 ? `${s.name}: ${res.count}건 들어옵니다.\n예: ${(res.sample||[])[0]||''}`
+    : `${s.name}: 0건입니다. 검색어나 주소를 확인하세요.`);
 };
-window.pickProv=async(n)=>{const r=await api('/api/setup/model',{provider:n});
-  if(r.ok){S.provider=n; say('#m-model',true,'제공자를 '+n+' 로 바꿨습니다.');}};
-window.testProv=async(n)=>{
+window.pickProv=async n=>{const r=await api('/api/setup/model',{provider:n});
+  if(r.ok){S.provider=n; progress(); say('#m-model',true,'초안은 '+n+' 로 씁니다.');}};
+window.testProv=async n=>{
   const row=document.querySelector(`tr[data-p="${n}"]`);
   const body={provider:n, model:row.querySelector('.pm').value};
   const k=row.querySelector('.pk'); if(k&&k.value) body.api_key=k.value;
+  say('#m-model','wait','연결해 보는 중…');
   await api('/api/setup/model', body);
   const r=await api('/api/setup/test/model',{provider:n});
   say('#m-model', r.ok, r.ok ? `연결됐습니다. 응답: ${r.reply}`
-      + ((r.models||[]).length?`  · 쓸 수 있는 모델: ${r.models.slice(0,6).join(', ')}`:'')
+      + ((r.models||[]).length?`\n쓸 수 있는 모델: ${r.models.slice(0,8).join(', ')}`:'')
       : r.error);
   load();
 };
-$('#profile').onchange=async e=>{await api('/api/setup/profile/use',{id:e.target.value});load();};
+$('#rungo').onclick=async()=>{
+  if(dirty.size) return say('#m-run',false,
+    '저장하지 않은 변경이 있습니다: '+[...dirty].join(', ')+'. 먼저 저장하세요.');
+  $('#rungo').disabled=true; $('#runout').innerHTML='';
+  say('#m-run','wait','수집하고 골라 보는 중… 1~2분 걸립니다.');
+  const r=await api('/api/setup/test/collect',{days:+$('#days').value});
+  $('#rungo').disabled=false;
+  if(!r.ok) return say('#m-run',false,r.error);
+  const zero=(r.sources||[]).filter(s=>!s.count);
+  say('#m-run', r.picked.length>0,
+    `${r.articles}건 모아 ${r.clusters}개로 묶고 ${r.picked.length}건 골랐습니다.`
+    + (zero.length?`\n0건인 수집원: ${zero.map(s=>s.name).join(', ')} — ② 에서 확인하세요.`:'')
+    + (r.picked.length?'':'\n하나도 못 골랐습니다. ③ 키워드를 넓히거나 ⑤ 최소 건수를 줄여 보세요.'));
+  $('#runout').innerHTML=`
+   <h3>수집원별</h3><div class="tags">${(r.sources||[]).map(s=>
+     `<span class="tag" style="${s.count?'':'border-color:#5b2b2b;color:#ffa198'}">
+       <b>${esc(s.name)}</b> ${s.count}</span>`).join('')}</div>
+   <h3>이대로면 이렇게 실립니다</h3>
+   <table><thead><tr><th style="width:80px">트랙</th><th style="width:56px">점수</th>
+     <th>제목</th><th style="width:250px">왜 골랐나</th></tr></thead><tbody>
+   ${r.picked.map(p=>`<tr><td>${esc(p.track)}</td><td>${p.score}</td>
+     <td>${esc(p.title)}</td><td class="hint">${(p.why||[]).map(esc).join('<br>')}</td></tr>`).join('')}
+   </tbody></table>`;
+};
+
+/* ---- 말로 설정하기 ------------------------------------------------------ */
+let PROP=null;
+const PARTS=[
+ ["profile","분야 이름", p=>`${esc(p.name||'')} · 주제 ${esc(p.subject||'')}`],
+ ["keywords","키워드", p=>`핵심어 ${(p.core||[]).length}개 · 주변어 ${(p.adjacent||[]).length}개
+   <div class="hint">${esc((p.core||[]).slice(0,12).join(', '))}…</div>`],
+ ["sources","수집원", p=>(p.sources||[]).map(s=>
+   `<span class="pill">${esc(s.name||s.id)}</span>`).join(' ')],
+ ["relevance","관련도", p=>[...(p.relevance||[])].sort((a,b)=>b.weight-a.weight).map(g=>
+   `${esc(g.group)} <b>${g.weight}</b>`).join(' · ')],
+ ["tracks","구성", p=>(p.tracks||[]).map(t=>`${esc(t.label||t.key)} ${t.min}~${t.max}건`).join(' · ')],
+];
+$('#askgo').onclick=async()=>{
+  const ask=$('#askbox').value.trim();
+  if(ask.length<4) return say('#m-ask',false,'한 문장이라도 적어 주세요.');
+  $('#askwait').textContent='모델에게 물어보는 중… 20초쯤 걸립니다';
+  $('#askgo').disabled=true;
+  const r=await api('/api/setup/suggest',{ask});
+  $('#askgo').disabled=false; $('#askwait').textContent='';
+  if(!r.ok){ $('#prop').style.display='none'; return say('#m-ask',false,r.error); }
+  PROP=r.proposal;
+  $('#propnote').textContent=PROP.note||'';
+  $('#propnote').style.display=PROP.note?'':'none';
+  $('#propbody').innerHTML=PARTS.filter(([k])=>{
+      const v=PROP[k==='profile'?'name':k]; return v&&(!Array.isArray(v)||v.length);
+    }).map(([k,label,fmt])=>`<tr>
+      <td><input type="checkbox" class="pp" value="${k}" checked></td>
+      <td>${label}</td><td>${fmt(PROP)}</td></tr>`).join('');
+  $('#prop').style.display='block';
+  say('#m-ask',true,'제안을 받았습니다. 적용할 것을 고르고 아래 단추를 누르세요.');
+};
+$('#dropprop').onclick=()=>{PROP=null;$('#prop').style.display='none';};
+$('#applyprop').onclick=async()=>{
+  if(!PROP) return;
+  const parts=$$('.pp:checked').map(c=>c.value);
+  if(!parts.length) return say('#m-ask',false,'적용할 것을 하나는 고르세요.');
+  const r=await api('/api/setup/apply',{proposal:PROP,parts});
+  say('#m-ask', r.ok, r.ok?'적용했습니다: '+(r.applied||[]).join(', ')+'. 아래에서 다듬으세요.':r.error);
+  if(r.ok){ $('#prop').style.display='none'; PROP=null; dirty.clear();
+    $('#dirtypill').style.display='none'; $$('section').forEach(s=>s.classList.remove('dirty'));
+    await load(); $('#org').scrollIntoView({behavior:'smooth'}); }
+};
+
+/* ---- 분야 -------------------------------------------------------------- */
+$('#profile').onchange=async e=>{
+  if(dirty.size && !confirm('저장 안 한 변경이 사라집니다. 분야를 바꿀까요?')){
+    e.target.value=S.profile_id; return;}
+  dirty.clear(); $('#dirtypill').style.display='none';
+  await api('/api/setup/profile/use',{id:e.target.value}); load();};
 $('#newprof').onclick=async()=>{
-  const id=prompt('새 분야의 영문 이름 (예: intl-coop)'); if(!id) return;
-  const name=prompt('화면에 보일 이름 (예: 국제협력 동향지)')||id;
+  const id=prompt('새 분야의 영문 이름 (폴더 이름이 됩니다. 예: marine-safety)'); if(!id) return;
+  const name=prompt('화면에 보일 이름 (예: 해양안전 동향지)')||id;
   const r=await api('/api/setup/profile/new',{id,name});
   if(!r.ok) return alert(r.error);
-  await api('/api/setup/profile/use',{id:r.id}); load();
+  await api('/api/setup/profile/use',{id:r.id}); dirty.clear(); load();
+  alert('만들었습니다. 맨 위 "말로 설정하기" 에 한 문장 적으면 빠릅니다.');
 };
-$('#finish').onclick=async()=>{await api('/api/setup/done',{}); location.href='/';};
+$('#delprof').onclick=async()=>{
+  if(!confirm(`분야 "${S.profile_id}" 를 폴더째 지웁니다. 되돌릴 수 없습니다.`)) return;
+  const r=await api('/api/setup/profile/delete',{id:S.profile_id});
+  if(!r.ok) return alert(r.error);
+  dirty.clear(); load();};
+$('#finish').onclick=async()=>{
+  if(dirty.size && !confirm('저장 안 한 변경이 있습니다. 그냥 나갈까요?')) return;
+  await api('/api/setup/done',{}); window.onbeforeunload=null; location.href='/';};
+
+/* ---- 목차 따라가기 ------------------------------------------------------ */
+new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting) $$('#toc a').forEach(a=>
+    a.classList.toggle('on', a.hash==='#'+e.target.id));
+}),{rootMargin:'-70px 0px -70% 0px'}).observe&&
+$$('section').forEach(s=>new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting) $$('#toc a').forEach(a=>a.classList.toggle('on',a.hash==='#'+e.target.id));
+}),{rootMargin:'-70px 0px -70% 0px'}).observe(s));
+
 load();
 </script></body></html>
