@@ -8,10 +8,10 @@ from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markupsafe import Markup
 
-from .config import ROOT, Config, load
+from .config import ROOT, app_file, Config, load
 from .models import Issue
 
-TEMPLATE_DIR = ROOT / "templates"
+TEMPLATE_DIR = app_file("templates")
 
 
 def _first_track() -> str:
@@ -147,7 +147,7 @@ def write(issue: Issue, cfg: Optional[Config] = None, preview: bool = False) -> 
 # 잘라내 파일 안에 담는다. 세 굵기를 합쳐 100KB 남짓이다.
 # Paperlogy 는 SIL OFL 이라 임베딩·재배포가 허용된다(assets/fonts/README.md).
 
-FONT_DIR = ROOT / "assets" / "fonts"
+FONT_DIR = app_file("assets/fonts")
 
 # 표지·제목용(display)과 본문용(body)을 따로 고른다.
 #   Paperlogy  : AX360 과 같은 글꼴. 발표용으로 만들어져 큰 글자에서 잘 읽힌다

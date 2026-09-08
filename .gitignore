@@ -27,3 +27,8 @@ config/secrets.yaml
 
 # 글꼴 원본은 함께 둔다 (SIL OFL)
 !assets/fonts/
+
+# 빌드 산출물 — 33MB 짜리 앱이 저장소에 들어가면 안 된다
+dist/
+build/
+*.spec.bak

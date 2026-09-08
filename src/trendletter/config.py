@@ -20,19 +20,81 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
 
-# 프로그램이 놓인 곳 (프로파일·프롬프트·서식이 여기 있다)
-APP_ROOT = Path(__file__).resolve().parents[2]
-# 설정과 산출물이 놓인 곳. 설치형에서는 사용자 폴더를 가리킨다.
-ROOT = Path(os.environ.get("TRENDLETTER_ROOT") or APP_ROOT).resolve()
+FROZEN = bool(getattr(sys, "frozen", False))
+
+# 프로그램이 놓인 곳 (서식·프롬프트·글꼴·처음 쓸 분야가 여기 있다).
+# 설치형에서는 앱 안이라 읽기 전용으로 봐야 한다.
+if FROZEN:
+    APP_ROOT = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent)).resolve()
+else:
+    APP_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _default_data_root() -> Path:
+    """설정과 산출물을 둘 곳.
+
+    설치형에서 앱 안에 쓰면 안 된다 — 맥은 서명이 깨지고, 윈도우는 Program
+    Files 에 권한이 없으며, 업데이트하면 사용자 설정이 통째로 날아간다.
+    """
+    if not FROZEN:
+        return APP_ROOT
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "동향지"
+    if os.name == "nt":
+        base = os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming")
+        return Path(base) / "동향지"
+    return Path(os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local/share")) / "동향지"
+
+
+ROOT = Path(os.environ.get("TRENDLETTER_ROOT") or _default_data_root()).resolve()
 
 CONFIG_DIR = ROOT / "config"
 PROFILES_DIR = ROOT / "profiles"
-# 설치형에서 프로파일은 프로그램 쪽에 있고 데이터만 사용자 쪽에 있을 수 있다.
+
+
+def app_file(rel: str) -> Path:
+    """서식·프롬프트·글꼴처럼 프로그램에 딸린 파일.
+
+    사용자 폴더에 같은 이름이 있으면 그것을 먼저 쓴다. 서식을 기관에 맞게
+    고쳐 쓰고 싶을 때 앱을 다시 만들지 않아도 되게 한다.
+    """
+    mine = ROOT / rel
+    return mine if mine.exists() else APP_ROOT / rel
+
+
+def ensure_data_root() -> Path:
+    """처음 실행이면 프로그램에 딸린 설정을 사용자 폴더로 복사한다.
+
+    이 일을 안 하면 설치형은 설정 파일이 없어 첫 화면부터 죽는다.
+    이미 있는 파일은 건드리지 않는다 — 업데이트가 사용자 설정을 덮으면 안 된다.
+    """
+    import shutil
+    ROOT.mkdir(parents=True, exist_ok=True)
+    for rel in ("config", "profiles"):
+        src, dst = APP_ROOT / rel, ROOT / rel
+        if not src.exists() or src.resolve() == dst.resolve():
+            continue
+        for item in src.rglob("*"):
+            if any(part in (".backup", "__pycache__") for part in item.parts):
+                continue
+            target = dst / item.relative_to(src)
+            if item.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+            elif not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(item, target)
+    return ROOT
+
+
+if FROZEN:
+    ensure_data_root()
+# 개발 중에는 프로파일이 소스 트리에 있다.
 if not PROFILES_DIR.exists():
     PROFILES_DIR = APP_ROOT / "profiles"
 

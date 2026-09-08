@@ -12,11 +12,11 @@ import shutil
 import subprocess
 from typing import Any, Dict, List, Optional
 
-from .config import ROOT, load
+from .config import ROOT, app_file, load
 
 # 분야마다 말투와 예문이 다르다. 프로파일에 있으면 그것을 쓰고,
 # 없으면 공통 뼈대를 쓴다. 새 분야는 공통을 복사해 고쳐 쓰면 된다.
-COMMON_PROMPTS = ROOT / "prompts"
+COMMON_PROMPTS = app_file("prompts")
 
 
 class LlmUnavailable(RuntimeError):
@@ -52,6 +52,9 @@ def _fill(text: str, cfg) -> str:
         "{{PUBLISHER}}": cfg.get("issue.publisher", ""),
         "{{TEAM}}": cfg.get("issue.team", ""),
         "{{TRACK_QUOTAS}}": quotas,
+        "{{FIELD_LABELS}}": " / ".join(
+            t.get("field_label", t["key"]) for t in cfg.tracks()),
+        "{{TRACKS}}": " / ".join(t.get("label", t["key"]) for t in cfg.tracks()),
         "{{TOTAL_MAX}}": str(cfg.get("compose.total_max", 6)),
     }.items():
         text = text.replace(key, str(val))
