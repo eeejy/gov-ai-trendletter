@@ -11,8 +11,13 @@
 name: 윈도우 실행 파일
 
 on:
+  # 태그를 밀면 만들어서 Releases 에 올린다.
   push:
     tags: ["v*"]
+  # 여기에 밀면 만들어만 본다 (artifact 는 공개되지 않는다).
+  # 윈도우 빌드는 맥에서 확인할 방법이 없어, 깨진 걸 태그 밀 때 알면 늦다.
+  # paths 로 좁히지 않는다 — tags 와 함께 쓰면 태그 빌드가 조용히 건너뛰어진다.
+    branches: ["universal", "main"]
   workflow_dispatch:
 
 permissions:
