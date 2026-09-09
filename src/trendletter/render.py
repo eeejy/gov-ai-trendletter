@@ -215,22 +215,41 @@ FONT_SETS = {
 _ALWAYS = (
     "0123456789 .,·-–—()[]{}「」『』<>《》%℃~/:;!?*※＊|"
     "ㅇ○→←↑↓✓✔’‘“”\'\"…"
-    "해양경찰청인공지능전환팀정보동향지제호발행수집기간이슈주제목차"
+    "정보동향지제호발행수집기간이슈주제목차"
     "관련기사영상선정사유시점향후계획분야참고영향높은중간낮음"
-    "정책산업개발자트랙매체건곳표시원문전체록없다위개통합확인게재"
+    "트랙매체건곳표시원문전체록없다위개통합확인게재"
     "월화수목금토일년요전후오"
 )
+
+
+def _seed_text(cfg: Config) -> str:
+    """이 기관·이 분야에서 반드시 필요한 글자.
+
+    글꼴은 그 회차에 쓰인 글자만 잘라 담는다. 기관 이름이나 트랙 이름이
+    본문에 한 번도 안 나오면 그 글자가 빠져 표지·배지에서 네모로 보인다.
+    예전엔 "해양경찰청인공지능전환팀" 이 코드에 박혀 있어, 다른 기관이 쓰면
+    자기 이름이 깨졌다.
+    """
+    bits = [
+        str(cfg.get("issue.publisher", "")),
+        str(cfg.get("issue.team", "")),
+        str(cfg.prof("profile.series", "") or cfg.get("issue.series", "")),
+        str(cfg.prof("profile.name", "")),
+        str(cfg.prof("profile.subject", "")),
+    ]
+    for tr in cfg.tracks():
+        bits.append(str(tr.get("label", "")))
+        bits.append(str(tr.get("field_label", "")))
+    return "".join(bits)
 
 
 def _document_text(issue: Issue, cfg: Config) -> str:
     """이 회차 발행물에 등장하는 모든 글자."""
     parts = [
-        cfg.get("issue.series", ""),
-        cfg.get("issue.publisher", ""),
-        cfg.get("issue.team", ""),
         issue.slug,
         issue.label,
         issue.theme or "",
+        _seed_text(cfg),      # 기관·분야·트랙 이름 (본문에 안 나와도 표지엔 나온다)
         _ALWAYS,
     ]
     for it in issue.items:

@@ -297,7 +297,8 @@ def _collect_job(body: Dict[str, Any]):
         _job_set(done=max(len(topics), 1))
 
         todo = [it for it in issue.items if not it.locked]
-        _job_set(phase="draft", detail="Claude가 본문과 시사점을 쓰는 중…",
+        _job_set(phase="draft", detail="%s가 본문과 시사점을 쓰는 중…"
+                 % providers.SHORT.get(cfg.get("llm.provider", "claude_cli"), "모델"),
                  done=0, total=max(len(todo), 1))
 
         def on_item(line: str) -> None:
@@ -599,17 +600,21 @@ def api_add_candidate(index: int):
 
 @app.post("/api/item/blank")
 def api_blank_item():
-    """우리청 내부 소식처럼 수집되지 않는 항목을 직접 입력할 때 쓰는 빈 틀."""
+    """내부 소식처럼 수집되지 않는 항목을 직접 입력할 때 쓰는 빈 틀."""
+    cfg = load()
+    tracks = cfg.tracks()
+    first = tracks[0] if tracks else {}
     item = Item(
         no=0,
-        field_label="직접 개발형",
+        field_label=str(first.get("field_label") or first.get("key") or ""),
         audience="전 직원",
         impact="중간",
         title="",
-        source_label="해양경찰청 · %s" % date.today().strftime("%y. %-m. %-d."),
+        source_label="%s · %s" % (cfg.get("issue.publisher", "") or "내부",
+                                  date.today().strftime("%y. %-m. %-d.")),
         body=["ㅇ "],
         note_kind="시사점",
-        track="policy",
+        track=str(first.get("key") or "policy"),
     )
     return jsonify(item.to_dict())
 
