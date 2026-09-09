@@ -549,6 +549,9 @@ async function resetIssue(){
     const d = await post('/api/reset');
     issue = d.issue; published = false; dirty = false; previewed = false;
     fillForm(); render(); step();
+    // 오른쪽 항목만 지우면 왼쪽에 지난 호 흔적이 남는다. 화면도 같이 비운다.
+    $('cands').innerHTML = '';
+    $('healthBox').innerHTML = ''; $('healthBox').hidden = true;
     setSaveState('비어 있음');
     log(d.backed_up ? '새로 시작합니다. 이전 초안은 [되돌리기] 에 남아 있습니다.'
                     : '새로 시작합니다.');

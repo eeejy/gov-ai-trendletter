@@ -32,3 +32,6 @@ config/secrets.yaml
 dist/
 build/
 *.spec.bak
+
+# 설정 화면이 저장 직전 남기는 사본 — 자동으로 쌓이고 돌아가며 지워진다
+.backup/

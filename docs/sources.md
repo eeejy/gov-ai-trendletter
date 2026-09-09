@@ -162,8 +162,6 @@ IT뉴스모아는 원매체명을 `IT뉴스모아/{매체}` 로 남긴다. 이�
 | Hacker News | `hn.algolia.com/api/v1/search_by_date` | JSON | **Algolia 는 `OR`·괄호를 검색 문법이 아니라 문자열로 취급한다.** 짧은 질의를 여러 번 던져 합친다 |
 | Reddit | `reddit.com/r/{sub}/top/.rss?t=week` | Atom | **`.json` / `api.reddit.com` 은 403 차단.** 연속 요청 시 429 → 호스트당 3초 간격 필요 |
 | GitHub | `api.github.com/search/repositories` | JSON | `created:>7일전 topic:ai` 는 결과 0건. 생성 기간을 30일로 넓혀 사용 |
-| OpenRouter | — | — | **미구현.** 공개 랭킹 엔드포인트 확인 필요 |
-| Threads | — | — | 수동 보충 전용 |
 
 Reddit Atom 피드에는 **추천수·댓글수가 없다.** 따라서 '반응 크기'는
 주간 top 진입 순위와 Hacker News 지표로만 판단한다. 원래 설계했던
@@ -171,8 +169,7 @@ Reddit Atom 피드에는 **추천수·댓글수가 없다.** 따라서 '반응 �
 
 ## 알려진 제약
 
-1. **OpenRouter 미구현** — `enabled: false` 로 두었다.
-2. **Reddit 지표 부재** — 위 참고.
-3. **국가AI전략위원회 원문 미확인** — 정책브리핑 검색으로 대체 중.
-4. **호출 간격** — Reddit 3초, GitHub 1.5초, 그 외 0.4초로 제한한다.
+1. **Reddit 지표 부재** — 위 참고.
+2. **국가AI전략위원회 원문 미확인** — 정책브리핑 검색으로 대체 중.
+3. **호출 간격** — Reddit 3초, GitHub 1.5초, 그 외 0.4초로 제한한다.
    전체 수집은 약 1~2분 걸린다.
