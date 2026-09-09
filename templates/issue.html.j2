@@ -22,9 +22,13 @@
   --fog:#7C8899; --line:#D5DCE6;
   --hot:#FF4D6D; --warm:#FFB020;
   /* 수집 트랙별 색 — 성운과 본문 배지에 함께 쓴다 */
-  --tr-policy:#38E1FF;    /* 정책 */
-  --tr-industry:#7C6CFF;  /* 산업 */
-  --tr-dev:#38F0A8;       /* 개발자 */
+  /* 트랙 색은 분야가 정한다 (profiles/<분야>/profile.yaml 의 tracks[].color).
+     예전엔 policy·industry·dev 세 가지가 여기 박혀 있어, 트랙 이름이 다른
+     분야는 목차에 색이 아예 안 나왔다. */
+{%- for tr in tracks %}
+  --tr-{{ tr.key }}:{{ tr.color }};   /* {{ tr.label }} */
+{%- endfor %}
+  --tr-first:{{ tracks[0].color if tracks else '#38E1FF' }};
   /* 표지·제목용과 본문용을 나눈다 (config/settings.yaml 의 output.*_font) */
   --display:'TLDisplay','Paperlogy','Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
   --sans:'TLBody','Pretendard','Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',sans-serif;
@@ -98,9 +102,9 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
 .gx-legend .sep{color:#3C536F}
 .gx-legend .lbl{color:#5E7391;font-family:var(--mono);font-size:11px;letter-spacing:.1em}
 .gx-legend .note-s{color:#5E7391;font-size:11.5px}
-.gx-legend .t-policy{background:var(--tr-policy);box-shadow:0 0 8px var(--tr-policy)}
-.gx-legend .t-industry{background:var(--tr-industry);box-shadow:0 0 8px var(--tr-industry)}
-.gx-legend .t-dev{background:var(--tr-dev);box-shadow:0 0 8px var(--tr-dev)}
+{%- for tr in tracks %}
+.gx-legend .t-{{ tr.key }}{background:var(--tr-{{ tr.key }});box-shadow:0 0 8px var(--tr-{{ tr.key }})}
+{%- endfor %}
 
 /* 이번 주 요약 */
 .brief{border:1px solid rgba(120,170,255,.16);border-radius:12px;padding:18px 20px;
@@ -110,9 +114,9 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
 .brief .sub{margin-top:10px;display:flex;flex-wrap:wrap;gap:7px}
 .tk{font-size:12.5px;padding:4px 11px;border-radius:100px;font-weight:600;
     border:1px solid rgba(120,170,255,.24);color:#B9CEE8}
-.tk-policy{border-color:rgba(56,225,255,.42);color:var(--tr-policy)}
-.tk-industry{border-color:rgba(124,108,255,.46);color:#A79BFF}
-.tk-dev{border-color:rgba(56,240,168,.42);color:var(--tr-dev)}
+{%- for tr in tracks %}
+.tk-{{ tr.key }}{border-color:rgba({{ tr.rgb }},.44);color:{{ tr.soft }}}
+{%- endfor %}
 .kw{margin-top:16px;border-top:1px solid rgba(120,170,255,.14);padding-top:14px}
 .kw h4{font-family:var(--display);font-size:11px;letter-spacing:.16em;color:#7089A8;
        margin:0 0 10px;font-weight:700}
@@ -124,8 +128,10 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
 .kw li i{font-style:normal;font-size:10.5px;margin-left:6px;opacity:.7}
 .kw li.ent{font-family:var(--display);font-weight:700}
 .kw li.on{background:rgba(56,225,255,.10);border-color:rgba(56,225,255,.5);color:#DCF6FF}
-.kw li.tk-industry.on{background:rgba(124,108,255,.12);border-color:rgba(124,108,255,.55);color:#E2DEFF}
-.kw li.tk-dev.on{background:rgba(56,240,168,.10);border-color:rgba(56,240,168,.5);color:#D9FFEF}
+{%- for tr in tracks %}
+.kw li.tk-{{ tr.key }}.on{background:rgba({{ tr.rgb }},.12);
+  border-color:rgba({{ tr.rgb }},.55);color:{{ tr.pale }}}
+{%- endfor %}
 /* 모바일에서는 성운 대신 이 목록으로 이동한다.
    375px 화면에 별 36개와 라벨을 함께 넣으면 겹치고 누르기도 어렵다. */
 .gx-list{display:block;list-style:none;margin:16px 0 0;padding:0}
@@ -135,9 +141,10 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
 .gx-list a{display:grid;grid-template-columns:auto 1fr;gap:3px 11px;
            padding:13px 2px;text-decoration:none;align-items:baseline}
 .gx-list .n{grid-row:1/3;font-family:var(--display);font-weight:900;font-size:15px;
-            color:var(--tr-industry)}
-.gx-list .tr-policy .n{color:var(--tr-policy)}
-.gx-list .tr-dev .n{color:var(--tr-dev)}
+            color:var(--tr-first)}
+{%- for tr in tracks %}
+.gx-list .tr-{{ tr.key }} .n{color:var(--tr-{{ tr.key }})}
+{%- endfor %}
 .gx-list .tt{color:#E4EEFA;font-size:14.5px;font-weight:700;line-height:1.45}
 .gx-list .mt{font-size:11.5px;color:#7E96B5}
 
@@ -153,9 +160,9 @@ main{background:var(--paper);padding:52px 0 10px}
 .js .item.seen{opacity:1;transform:none}
 .item::before{content:'';display:block;width:52px;height:3px;border-radius:2px;
               background:var(--blue);margin-bottom:16px}
-.item.tr-policy::before{background:linear-gradient(90deg,#0090B8,var(--tr-policy))}
-.item.tr-industry::before{background:linear-gradient(90deg,#4B3ED6,var(--tr-industry))}
-.item.tr-dev::before{background:linear-gradient(90deg,#12A86C,var(--tr-dev))}
+{%- for tr in tracks %}
+.item.tr-{{ tr.key }}::before{background:linear-gradient(90deg,{{ tr.deep }},var(--tr-{{ tr.key }}))}
+{%- endfor %}
 .item.synthesis{border-color:#BCD3F5;box-shadow:0 2px 14px rgba(0,81,255,.07)}
 .item.synthesis::before{background:linear-gradient(90deg,var(--blue),var(--cyan));width:92px;height:4px}
 .badge.syn{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
@@ -166,9 +173,9 @@ main{background:var(--paper);padding:52px 0 10px}
        border:1px solid var(--sky-lt);color:var(--blue);font-weight:700}
 .badge b{font-weight:700;color:var(--fog);margin-right:5px}
 .badge.tr{font-weight:700}
-.badge.tr.tr-policy{background:#E4FAFF;border-color:#A8E9F7;color:#046C87}
-.badge.tr.tr-industry{background:#EFEDFF;border-color:#CFC9FF;color:#4B3ED6}
-.badge.tr.tr-dev{background:#E4FBF1;border-color:#B0EFD3;color:#12805A}
+{%- for tr in tracks %}
+.badge.tr.tr-{{ tr.key }}{background:{{ tr.pale }};border-color:{{ tr.edge }};color:{{ tr.ink }}}
+{%- endfor %}
 .badge.hi{background:#FFF0F3;border-color:#FFD2DC;color:var(--hot)}
 .badge.mid{background:#FFF7E8;border-color:#FBE3B4;color:#9A6B00}
 
@@ -305,7 +312,7 @@ footer .mono{font-family:var(--mono);font-size:11.5px;color:#63799A}
   <div class="inner">
     <div class="kicker">{{ publisher }} · {{ team }}</div>
     <h1>{{ series }}<br><em>{{ issue.label }}</em></h1>
-    <p class="lede">{% if issue.theme %}{{ issue.theme }}{% else %}주간 AI 정책·산업·기술 동향{% endif %}</p>
+    <p class="lede">{% if issue.theme %}{{ issue.theme }}{% else %}{{ tracks|map(attribute='label')|join(' · ') }} 동향{% endif %}</p>
     <div class="stats">
       <div><b>{{ issue.published_on.year }}. {{ issue.published_on.month }}. {{ issue.published_on.day }}.</b><span>발행</span></div>
       <div><b>{{ issue.period_from.month }}.{{ issue.period_from.day }} – {{ issue.period_to.month }}.{{ issue.period_to.day }}</b><span>수집기간</span></div>
@@ -319,7 +326,7 @@ footer .mono{font-family:var(--mono);font-size:11.5px;color:#63799A}
   <div class="wrap">
     <div class="gx-head">
       <div class="kicker">CONTENTS</div>
-      <h2>이번 주 AI 동향 한눈에</h2>
+      <h2>이번 호 한눈에</h2>
       <p>떠다니는 말은 이번 주 이슈에서 자주 나온 낱말입니다. 밝게 빛나는 {{ issue.items|length }}개가 이번 호에 실렸고, 눌러서 바로 이동할 수 있습니다.</p>
     </div>
 

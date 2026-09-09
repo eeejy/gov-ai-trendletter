@@ -116,6 +116,48 @@ def galaxy_data(issue: Issue, cfg: Config) -> dict:
     }
 
 
+def _hex_rgb(value: str):
+    """#38E1FF → (56, 225, 255). 못 읽으면 기본 파랑."""
+    s = str(value or "").strip().lstrip("#")
+    if len(s) == 3:
+        s = "".join(c * 2 for c in s)
+    try:
+        return tuple(int(s[i:i + 2], 16) for i in (0, 2, 4))
+    except (ValueError, IndexError):
+        return (56, 225, 255)
+
+
+def _mix(rgb, other, ratio: float) -> str:
+    """두 색을 섞어 #rrggbb 로. 배지·그러데이션의 짙은 쪽을 만든다."""
+    return "#%02X%02X%02X" % tuple(
+        round(a * (1 - ratio) + b * ratio) for a, b in zip(rgb, other))
+
+
+def track_styles(cfg: Config) -> List[Dict[str, Any]]:
+    """트랙마다 서식이 쓸 색을 미리 계산해 둔다.
+
+    예전엔 --tr-policy · --tr-industry · --tr-dev 세 가지가 서식에 박혀 있었다.
+    트랙 이름이 다른 분야(국제협력의 multilateral·partner)는 색이 아예 안 나왔다.
+    분야가 색을 정하고, 나머지 음영은 그 색에서 만든다.
+    """
+    out = []
+    for tr in cfg.tracks():
+        rgb = _hex_rgb(tr.get("color") or "#38E1FF")
+        r, g, b = rgb
+        out.append({
+            "key": tr["key"],
+            "label": tr.get("label", tr["key"]),
+            "color": "#%02X%02X%02X" % rgb,
+            "rgb": "%d,%d,%d" % rgb,
+            "deep": _mix(rgb, (0, 0, 0), 0.42),        # 그러데이션 시작
+            "ink": _mix(rgb, (0, 0, 0), 0.55),         # 밝은 배경 위 글자
+            "pale": _mix(rgb, (255, 255, 255), 0.90),  # 배지 배경
+            "edge": _mix(rgb, (255, 255, 255), 0.62),  # 배지 테두리
+            "soft": _mix(rgb, (255, 255, 255), 0.72),  # 어두운 배경 위 글자
+        })
+    return out
+
+
 def render(issue: Issue, cfg: Optional[Config] = None) -> str:
     cfg = cfg or load()
     # 동향지 이름은 분야가, 기관·부서는 앱 전역이 정한다.
@@ -130,6 +172,7 @@ def render(issue: Issue, cfg: Optional[Config] = None) -> str:
         publisher=publisher,
         team=team,
         galaxy=galaxy_data(issue, cfg),
+        tracks=track_styles(cfg),
     )
 
 

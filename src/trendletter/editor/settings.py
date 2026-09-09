@@ -48,6 +48,15 @@ def _write(path: Path, data: Any) -> None:
     buf = io.StringIO()
     _yaml().dump(data, buf)
     text = buf.getvalue()
+    # 쓰기 전에 다시 읽어 본다. 한 번 못 읽는 파일을 남기면 프로그램이
+    # 아예 안 열리고, 사람은 어느 줄이 잘못됐는지 알 길이 없다.
+    # (실제로 관련도 그룹을 전부 지웠을 때 주석만 남고 `{}` 가 붙어 깨졌다.)
+    try:
+        _yaml().load(io.StringIO(text))
+    except Exception as exc:                               # noqa: BLE001
+        raise ValueError(
+            "설정을 쓰지 않았습니다 — 그대로 저장하면 파일을 읽을 수 없게 됩니다"
+            " (%s: %s)" % (path.name, str(exc).splitlines()[0][:80]))
     # 한 곳을 저장하면 다른 파일도 함께 다시 쓰인다. 내용이 같으면 손대지 않는다 —
     # 안 바뀐 파일이 매번 새로 써지면 무엇을 고쳤는지 알 수 없다.
     if path.exists() and path.read_text(encoding="utf-8") == text:
@@ -310,6 +319,10 @@ def save_keywords():
     fresh: Dict[str, Any] = {}
     if "core" in d:
         fresh["core"] = _lines(d["core"])
+        if not fresh["core"] and not _lines(d.get("core_en")):
+            return jsonify({"ok": False,
+                            "error": "핵심어가 하나도 없습니다. 이대로 두면 모아 온 "
+                                     "자료가 전부 걸러져 한 건도 안 남습니다."}), 400
     if "adjacent" in d:
         fresh["adjacent"] = _lines(d["adjacent"])
     if "core_en" in d:
@@ -320,7 +333,11 @@ def save_keywords():
         elif "core_en" in f:
             del f["core_en"]
     if "min_focus" in d:
-        fresh["min_focus"] = float(d["min_focus"])
+        try:
+            fresh["min_focus"] = float(d["min_focus"])
+        except (TypeError, ValueError):
+            return jsonify({"ok": False,
+                            "error": "통과 기준은 숫자여야 합니다 (보통 2~5)."}), 400
     for k in ("require_topic", "adjacent_needs_core"):
         if k in d:
             fresh[k] = bool(d[k])
@@ -335,16 +352,25 @@ def save_tracks():
     d = request.get_json(force=True)
     path = _profile_path(load().profile_id, "profile.yaml")
     prof = _read(path)
+    if not [x for x in (d.get("tracks") or []) if str(x.get("key") or "").strip()]:
+        return jsonify({"ok": False,
+                        "error": "트랙이 하나도 없습니다. 영문 key 가 빈 줄은 "
+                                 "저장되지 않습니다."}), 400
     rows = []
     for t in (d.get("tracks") or []):
         key = str(t.get("key") or "").strip()
         if not key:
             continue
+        lo, hi = int(t.get("min") or 0), int(t.get("max") or 0)
+        if lo > hi:
+            return jsonify({"ok": False,
+                            "error": "«%s» 트랙의 최소(%d)가 최대(%d)보다 큽니다."
+                                     % (t.get("label") or key, lo, hi)}), 400
         row = {"key": key,
                "label": str(t.get("label") or key),
                "field_label": str(t.get("field_label") or key),
                "color": str(t.get("color") or "#38E1FF"),
-               "quota": [int(t.get("min") or 0), int(t.get("max") or 0)]}
+               "quota": [lo, hi]}
         was = next((x for x in (prof.get("tracks") or [])
                     if str(x.get("key")) == key), {})
         need = t.get("require_cross_platform") or was.get("require_cross_platform")
@@ -385,6 +411,14 @@ def save_sources():
     doc = _read(path)
     # 화면은 platform·role 같은 값을 보내지 않는다. 안 보냈다고 지우면
     # 교차검증(같은 소식이 여러 곳에서 나왔는지)이 조용히 죽는다.
+    known = set(_collector_names())
+    bad = [str(s.get("name") or s.get("id"))
+           for s in (d.get("sources") or [])
+           if s.get("collector") and s["collector"] not in known]
+    if bad:
+        return jsonify({"ok": False,
+                        "error": "없는 수집기를 가리킵니다: %s. 쓸 수 있는 것은 %s 입니다."
+                                 % (", ".join(bad[:3]), ", ".join(sorted(known)))}), 400
     old = {s.get("id"): s for s in (doc.get("sources") or [])}
     rows = []
     for s in (d.get("sources") or []):
@@ -417,6 +451,11 @@ def save_relevance():
     onto = _read(path)
     wr = onto.setdefault("work_relevance", {})
     fresh: Dict[str, Any] = {}
+    if not [g for g in (d.get("groups") or []) if str(g.get("group") or "").strip()]:
+        return jsonify({"ok": False,
+                        "error": "관련도 그룹이 하나도 없습니다. "
+                                 "우리 기관을 가리키는 그룹 하나는 있어야 "
+                                 "무엇이 중요한지 가릴 수 있습니다."}), 400
     for g in (d.get("groups") or []):
         name = str(g.get("group") or "").strip()
         if not name:
@@ -475,9 +514,14 @@ def new_profile():
     """지금 분야를 복사해 새 분야를 만든다. 맨바닥에서 시작하지 않게."""
     d = request.get_json(force=True)
     pid = str(d.get("id") or "").strip()
-    if not pid or not pid.replace("-", "").replace("_", "").isalnum():
+    # 파이썬에서는 한글도 isalnum() 이 참이다. 그대로 두면 폴더 이름이 한글이
+    # 되어 압축·다른 컴퓨터로 옮길 때 깨진다. 화면에 보일 이름은 따로 받는다.
+    import re as _re
+    if not _re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,39}", pid):
         return jsonify({"ok": False,
-                        "error": "영문·숫자·하이픈으로 된 이름을 적어 주세요"}), 400
+                        "error": "폴더 이름이 되므로 영문·숫자·하이픈만 씁니다 "
+                                 "(예: marine-safety). 화면에 보일 이름은 "
+                                 "한글로 따로 적습니다."}), 400
     dest = PROFILES_DIR / pid
     if dest.exists():
         return jsonify({"ok": False, "error": "같은 이름의 분야가 이미 있습니다"}), 400
@@ -526,6 +570,20 @@ def suggest():
         return jsonify({"ok": False, "error": "무엇에 대한 동향지인지 한 문장 적어 주세요"})
 
     cfg = load()
+    # 모델이 없으면 여기서 멈춘다. 안 그러면 파이썬 예외 문자열이 그대로 뜬다
+    # ("HTTPConnectionPool(host='localhost', port=11434) ...").
+    picked = cfg.get("llm.provider", "claude_cli")
+    try:
+        ready = providers.get(picked).available()
+    except Exception:                                      # noqa: BLE001
+        ready = False
+    if not ready:
+        return jsonify({"ok": False, "error":
+                        "«%s» 를 쓸 수 없어 제안을 받을 수 없습니다. 아래 ⑥ 에서 "
+                        "다른 모델을 고르거나 시험해 보세요.\n%s"
+                        % (providers.LABELS.get(picked, picked),
+                           providers.HINTS.get(picked, ""))})
+
     depts = _read(CONFIG_DIR / "korea_kr_depts.yaml").get("departments") or {}
     prompt = (llm._load_prompt("suggest_profile.md")
               .replace("{{DEPTS}}", ", ".join(sorted(depts)))
@@ -534,8 +592,14 @@ def suggest():
               .replace("{{ASK}}", ask))
     try:
         data = llm._extract_json(llm.run(prompt, timeout=180))
-    except Exception as exc:                          # noqa: BLE001
-        return jsonify({"ok": False, "error": str(exc)[:220]})
+    except ValueError:                                     # JSON 을 못 건졌다
+        return jsonify({"ok": False, "error":
+                        "모델이 알아들을 수 있는 답을 주지 않았습니다. "
+                        "한 번 더 눌러 보시고, 계속 그러면 ⑥ 에서 다른 모델을 "
+                        "골라 보세요."})
+    except Exception as exc:                               # noqa: BLE001
+        return jsonify({"ok": False, "error":
+                        "제안을 받지 못했습니다 — %s" % str(exc)[:180]})
 
     # 트랙 키가 없는 수집원은 첫 트랙으로 붙인다. 안 그러면 그 수집원이 죽는다.
     keys = [str(t.get("key")) for t in (data.get("tracks") or []) if t.get("key")]

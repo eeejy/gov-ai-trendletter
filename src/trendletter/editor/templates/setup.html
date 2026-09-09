@@ -469,7 +469,8 @@ $$('[data-save]').forEach(b=>b.onclick=async()=>{
   const k=b.dataset.save, sec=b.closest('section').id;
   b.disabled=true;
   const r=await api('/api/setup/'+k, gather[k]());
-  if(k==='tracks') await api('/api/setup/compose',{total_max:+$('#total_max').value,
+  // 트랙 저장이 거부됐는데 구성만 저장되면, 화면과 파일이 어긋난다.
+  if(k==='tracks' && r.ok) await api('/api/setup/compose',{total_max:+$('#total_max').value,
       llm_rerank:$('#llm_rerank').checked, drop_same_event:$('#drop_same').checked});
   b.disabled=false;
   say('#m-'+sec, r.ok, r.ok?'저장했습니다.':r.error);
