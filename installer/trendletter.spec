@@ -65,10 +65,13 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
+# 실행 파일 이름은 영문으로 둔다. 한글로 하면 zip 안에서 이름이 깨진다 —
+# Compress-Archive 가 UTF-8 표시를 달지 않아, 푸는 도구에 따라 아예 못 연다.
+# 사람이 보는 이름(창 제목·맥 앱 이름)은 한글 그대로다.
 exe = EXE(
     pyz, a.scripts, [],
     exclude_binaries=True,
-    name="동향지",
+    name="trendletter",
     debug=False,
     strip=False,
     upx=False,
@@ -76,7 +79,7 @@ exe = EXE(
     icon=str(ROOT / "installer" / "icon.icns") if (ROOT / "installer" / "icon.icns").exists() else None,
 )
 
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="동향지")
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="trendletter")
 
 if sys.platform == "darwin":
     app = BUNDLE(

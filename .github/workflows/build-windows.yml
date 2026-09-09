@@ -51,6 +51,10 @@ jobs:
           if (-not $dir) { throw "dist 에 아무것도 없습니다" }
           $exe = Get-ChildItem $dir.FullName -Filter *.exe | Select-Object -First 1
           if (-not $exe) { throw "실행 파일이 없습니다" }
+          # 이름이 ASCII 여야 한다. 한글이면 zip 안에서 깨져 못 연다.
+          if ($exe.Name -notmatch '^[\x20-\x7E]+$') {
+            throw "실행 파일 이름에 ASCII 가 아닌 글자가 있습니다: $($exe.Name)"
+          }
           Write-Host "만들어짐: $($exe.FullName)  ($([math]::Round($exe.Length/1MB,1)) MB)"
           # 비밀 파일이 딸려 갔는지 본다. 한 번이라도 새면 되돌릴 수 없다.
           $leak = Get-ChildItem $dir.FullName -Recurse -Filter secrets.yaml
@@ -59,7 +63,15 @@ jobs:
 
       - name: 압축
         shell: pwsh
-        run: Compress-Archive -Path "$env:BUILD_DIR/*" -DestinationPath "trendletter-windows.zip"
+        run: |
+          # Compress-Archive 는 이름을 UTF-8 로 표시하지 않아, 안에 한글 이름이
+          # 있으면 푸는 도구에 따라 깨진다. 인코딩을 직접 지정한다.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::CreateFromDirectory(
+            $env:BUILD_DIR, "$PWD/trendletter-windows.zip",
+            [System.IO.Compression.CompressionLevel]::Optimal, $false,
+            [System.Text.Encoding]::UTF8)
+          Write-Host "zip $([math]::Round((Get-Item trendletter-windows.zip).Length/1MB,1)) MB"
 
       - uses: actions/upload-artifact@v4
         with:
