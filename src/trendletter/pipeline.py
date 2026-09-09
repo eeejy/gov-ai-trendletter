@@ -155,7 +155,9 @@ def _impact(cl: Cluster) -> str:
 
 def _audience(cl: Cluster) -> str:
     onto = cl.onto or {}
-    _ax = (load().ontology.get("meta") or {})
+    _cfg = load()
+    _org = _cfg.get("issue.publisher", "") or "우리 기관"
+    _ax = (_cfg.ontology.get("meta") or {})
     work = onto.get(_ax.get("work_axis", "업무 분야")) or []
     plan = onto.get(_ax.get("plan_axis", "정책·사업")) or []
     if work and any(w != "행정·기획" for w in work):
@@ -202,7 +204,9 @@ def _draft_notes(cl: Cluster) -> dict:
     담당자가 지우고 쓰기보다 고쳐 쓰도록 한다. 어느 쪽이 맞는지는 사람이 고른다.
     """
     onto = cl.onto or {}
-    _ax = (load().ontology.get("meta") or {})
+    _cfg = load()
+    _org = _cfg.get("issue.publisher", "") or "우리 기관"
+    _ax = (_cfg.ontology.get("meta") or {})
     works = onto.get(_ax.get("work_axis", "업무 분야")) or []
     techs = onto.get(_ax.get("tech_axis", "기술·도구")) or []
     orgs = onto.get(_ax.get("org_axis", "기관")) or []
@@ -212,14 +216,15 @@ def _draft_notes(cl: Cluster) -> dict:
     org = orgs[0] if orgs else cl.lead.source_name
 
     return {
-        "시사점": "우리청 %s 업무에 %s 적용 가능성과 필요 여건을 검토할 필요" % (work, tech),
-        "향후계획": "%s의 후속 발표를 확인하고, 우리청 %s 업무 적용 방안을 사전 검토"
-        % (org, work),
+        "시사점": "%s %s 업무에 %s 적용 가능성과 필요 여건을 검토할 필요"
+        % (_org, work, tech),
+        "향후계획": "%s의 후속 발표를 확인하고, %s %s 업무 적용 방안을 사전 검토"
+        % (org, _org, work),
     }
 
 
 def to_item(cl: Cluster, no: int) -> Item:
-    """LLM 초안 작성 전의 뼈대. 본문·시사점은 사람 또는 Claude 가 채운다."""
+    """LLM 초안 작성 전의 뼈대. 본문·시사점은 사람 또는 모델이 채운다."""
     lead = cl.lead
     body = _outline(lead.summary)
     for extra in cl.articles[1:3]:

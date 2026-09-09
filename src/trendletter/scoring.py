@@ -541,7 +541,8 @@ def explain(cluster: Cluster, cfg: Config, rank_: int = 0, total: int = 0) -> Li
         out.append("필수 수집원 (%s)" % " · ".join(sorted(names)[:2]))
 
     if r.get("priority", 0) >= 4:
-        out.append("%s 관련 — 범정부 AI 정책 최상위 방향" % (getattr(cluster, "priority_topic", "") or "최우선 주제"))
+        out.append("%s 관련 — 이 분야 최상위 정책 방향"
+                   % (getattr(cluster, "priority_topic", "") or "최우선 주제"))
     elif r.get("priority", 0):
         out.append("%s 언급" % (getattr(cluster, "priority_topic", "") or "최우선 주제"))
 
@@ -557,26 +558,18 @@ def explain(cluster: Cluster, cfg: Config, rank_: int = 0, total: int = 0) -> Li
         )
 
     groups = getattr(cluster, "work_groups", []) or []
-    label = {
-        "직접": "우리청 직접 관련",
-        "유사기관": "유사기관 사례 (경찰·소방 등 현장 집행기관)",
-        "인접기관": "업무 인접기관 사례 (해수부·국방·관세)",
-        "타기관사례": "타 기관 AI 도입 사례 (참고)",
-        "공공전환": "공공부문 AI 전환",
-        "인재교육": "직원 교육·경진대회",
-        "현장임무": "현장 임무 적용 가능",
-        "현장기술": "현장 적용 가능 기술",
-        "인프라": "인프라·예산 근거",
-    }
+    # 선정 사유에 보일 설명. 분야마다 그룹 이름이 달라 코드에 둘 수 없다.
+    # 안 적어 두면 그룹 이름을 그대로 쓴다.
+    wr = cfg.ontology.get("work_relevance") or {}
     for g in groups[:2]:
-        out.append(label.get(g, g))
+        out.append((wr.get(g) or {}).get("label") or g)
     work = (cluster.onto or {}).get(
         (load().ontology.get("meta") or {}).get("work_axis", "업무 분야")) or []
     if work and not groups:
         out.append("업무 연관 (%s)" % " · ".join(work[:2]))
 
     if r.get("ai_focus", 0) >= 5:
-        out.append("AI가 기사의 중심 주제")
+        out.append("%s가 기사의 중심 주제" % (cfg.prof("profile.subject") or "이 분야"))
 
     dev = r.get("dev_signal", 0)
     if dev >= 2:

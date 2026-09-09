@@ -39,6 +39,16 @@ def _load(name: str):
 
 NAMES = ("claude_cli", "anthropic", "openai", "ollama", "gemini")
 
+# 문장 안에 넣을 짧은 이름. LABELS 는 설정 화면 표에 쓰는 긴 이름이라
+# "Claude Code (설치된 CLI)가 본문을 써 줍니다" 처럼 어색해진다.
+SHORT = {
+    "claude_cli": "클로드",
+    "anthropic": "클로드",
+    "openai": "GPT",
+    "ollama": "내 컴퓨터 모델",
+    "gemini": "제미나이",
+}
+
 # 못 쓸 때 무엇을 하면 되는지. doctor 와 설정 화면이 같은 문구를 쓴다.
 HINTS = {
     "claude_cli": "npm i -g @anthropic-ai/claude-code 로 설치한 뒤 claude 로 로그인",

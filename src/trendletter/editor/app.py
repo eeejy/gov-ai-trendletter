@@ -49,7 +49,7 @@ PHASES = [
     ("collect", "자료 수집", 0.34),
     ("cluster", "중복 통합·본문 확보·선별", 0.18),
     ("topic", "핫이슈 종합", 0.10),
-    ("draft", "Claude 초안 작성", 0.38),
+    ("draft", "초안 작성", 0.38),
 ]
 
 
@@ -129,17 +129,64 @@ def index():
     if not load().settings.get("setup_done"):
         return redirect("/setup")
     cfg = load()
+    from .. import providers
+    from ..config import profiles as _profiles
+    picked = cfg.get("llm.provider", "claude_cli")
     return render_template(
         "editor.html",
         sources=cfg.sources,
         settings=cfg.settings,
         series=(cfg.prof("profile.series", "")
                 or cfg.get("issue.series", "") or "정보동향지"),
+        # 화면에 박아 두면 다른 기관·다른 모델에서 거짓말이 된다.
+        publisher=cfg.get("issue.publisher", "") or "우리 기관",
+        model_name=providers.SHORT.get(picked, "모델"),
+        issue_unit=cfg.get("issue.unit", "이번 호"),
         profile_id=cfg.profile_id,
+        profile_list=_profiles(),
         field_labels=field_labels(),
         track_ko=lambda k: track_ko().get(k, k),
         role_ko=lambda k: ROLE_KO.get(k, k),
     )
+
+
+@app.post("/api/profile/use")
+def switch_profile():
+    """편집기에서 분야를 바꾼다.
+
+    편집기에 분야를 바꿀 길이 없으면, 분야를 여러 개 만들어 놓고도 설정 화면을
+    거쳐야만 오갈 수 있다.
+    """
+    from ..config import profiles as _profiles, reload as _reload
+    from .settings import _read, _write
+    from ..config import CONFIG_DIR
+    pid = str((request.get_json(silent=True) or {}).get("id") or "").strip()
+    if pid not in _profiles():
+        return jsonify({"ok": False, "error": "그런 분야가 없습니다: %s" % pid}), 400
+    st = _read(CONFIG_DIR / "settings.yaml")
+    st["profile"] = pid
+    _write(CONFIG_DIR / "settings.yaml", st)
+    _reload()
+    return jsonify({"ok": True, "id": pid})
+
+
+# 화면은 JSON 을 기다린다. 그런데 예기치 못한 곳에서 터지면 Flask 가 HTML
+# 오류 쪽을 돌려주고, 화면에는 "HTTP 500" 한 줄만 뜬다 — 무엇이 잘못됐는지
+# 아무도 모른다. /api/ 아래는 언제나 사람이 읽을 수 있는 JSON 으로 답한다.
+@app.errorhandler(Exception)
+def _api_error(exc):
+    from werkzeug.exceptions import HTTPException
+    if not request.path.startswith("/api/"):
+        raise exc
+    if isinstance(exc, HTTPException):
+        return jsonify({"ok": False, "error": exc.description}), exc.code
+    app.logger.exception("%s 처리 중 오류", request.path)
+    kind = type(exc).__name__
+    if isinstance(exc, KeyError):
+        msg = "초안 자료에 %s 항목이 없습니다. [되돌리기] 로 이전 시점을 불러오거나 [새로 시작] 하세요." % exc
+    else:
+        msg = "%s: %s" % (kind, exc)
+    return jsonify({"ok": False, "error": msg[:300]}), 500
 
 
 @app.get("/api/draft")
