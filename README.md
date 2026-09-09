@@ -28,13 +28,20 @@
 
 ### 1. 프로그램 받기
 
-| | |
-| --- | --- |
-| **맥** | [Releases](../../releases) 에서 `동향지.app` — 더블클릭하면 브라우저가 열린다 |
-| **윈도우** | [Releases](../../releases) 에서 `동향지-windows.zip` — 풀고 `동향지.exe` |
-| **소스에서** | `python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt` |
+[**Releases**](../../releases) 에서 내 것을 받는다. 파이썬은 필요 없다.
 
-파이썬이 없어도 된다. 설정과 산출물은 프로그램 안이 아니라 사용자 폴더에
+| | 받을 것 | 여는 법 |
+| --- | --- | --- |
+| **맥** (M1 이후) | `trendletter-macos-arm64.zip` | 풀고 `동향지.app` **오른쪽 클릭 → 열기** |
+| **맥** (Intel) | `trendletter-macos-intel.zip` | 〃 |
+| **윈도우** | `trendletter-windows.zip` | 풀고 `trendletter.exe` |
+| **소스에서** | — | `python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt` |
+
+맥은 처음 열 때 그냥 더블클릭하면 "확인되지 않은 개발자" 라며 막힌다.
+**오른쪽 클릭 → 열기 → 열기** 로 한 번만 열면 그다음부터는 더블클릭으로 열린다.
+칩을 모르겠으면 애플 메뉴 → «이 Mac에 관하여» 에서 본다.
+
+설정과 산출물은 프로그램 안이 아니라 사용자 폴더에
 쌓이므로(맥 `~/Library/Application Support/동향지`, 윈도우 `%APPDATA%\동향지`)
 프로그램을 새로 받아도 설정은 그대로 남는다.
 
@@ -186,11 +193,14 @@ docs/         설계·검증·수집원 현황·배포
 ## 직접 빌드하기
 
 ```bash
-./installer/build_mac.sh      # dist/동향지.app
+./installer/build_mac.sh      # dist/동향지.app  (이 맥의 칩용)
 ```
 
-윈도우 실행 파일은 PyInstaller 가 크로스 컴파일을 못 해 GitHub Actions
-(`windows-latest`)에서 만든다. 태그를 밀면 Releases 에 올라간다.
+PyInstaller 는 크로스 컴파일이 안 된다 — 맥에서 윈도우 exe 를 만들 수 없고,
+인텔용을 애플실리콘에서 만들 수도 없다. 그래서 배포본은 GitHub Actions 에서
+세 러너로 나눠 만든다(`windows-latest` · `macos-14` · `macos-13`).
+태그(`v*`)를 밀면 셋을 모아 Releases 에 올린다. 하나라도 실패하면 릴리스를
+만들지 않는다 — 반쪽짜리 릴리스보다 낫다.
 
 > **초안은 Actions 에서 만들지 않는다.** 공개 저장소 로그에 초안이 남고,
 > 검토 없이 나가면 잘못된 내용이 전 직원에게 전달되기 때문이다.
